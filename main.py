@@ -6,14 +6,14 @@ def calculateDistance(size):
     return size // (2**0.5)
 
 def getDimenstions():
-    rows = 7
+    rows = 3
     blockSize = 50
     radius = (2**0.5) * blockSize // 2
     margin = 25
     return (rows, blockSize, radius, margin)
 
 def createBoard(app):
-    board = []
+    board = {}
     counter = 0
     for row in range(1, app.rows+1):
         numOfBlocks = row
@@ -83,11 +83,22 @@ class Object():
     
     def __repr__(self) -> str:
         return f"{self.tag} at {self.center}"
-    
+
+    def getCenter(self) -> tuple:
+        return self.center
+
 class Block(Object):
     def __init__(self, tag: str, center: tuple, colors: list) -> None:
         super().__init__(tag, center)
         self.colors = colors
+
+class Player(Object):
+    def __init__(self, tag: str, center: tuple, currentBlock: str) -> None:
+        super().__init__(tag, center)
+        self.currentBlock = currentBlock
+    
+    def getCurrentBlock(self) -> str:
+        return self.currentBlock
 
 ################
 
@@ -98,9 +109,27 @@ def onAppStart(app):
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
     app.board = createBoard(app)
+    # player starts on the highest col of the pyramid
+    app.player = Object('player', app.board[0][0].getCenter())
+    app.playerStates = ['idle', 'jumping']
+    app.playerState = app.playerStates[0]
+    app.allowedMovementKeys = ['left', 'up', 'right', 'down']
+    app.elevationAngle = 0.5
 
 def redrawAll(app):
     drawPyramid(app)
+    drawPlayer(app)
+
+def onStep(app):
+    # if the state of player is jumping
+    if app.playerState == app.playerStates[1]:
+        playerJump(app)
+
+def onKeyPress(app, key):
+    if key in app.allowedMovementKeys:
+        app.playerState = app.playerStates[1]
+
+# Pyramid
 
 def drawPyramid(app):
     for row in range(len(app.board)):
@@ -115,11 +144,28 @@ def drawRow(app, row):
 
 def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, colors):
     # drawing top
-    drawPolygon(*topCoordinates, fill=colors[0], border='black')
-    drawPolygon(*leftSideCoordinates, fill=colors[1], border='black')
-    drawPolygon(*rightSideCoordinates, fill=colors[2], border='black')
+    drawPolygon(*topCoordinates, fill=colors[0], border='black', borderWidth=1)
+    drawPolygon(*leftSideCoordinates, fill=colors[1], border='black', borderWidth = 1)
+    drawPolygon(*rightSideCoordinates, fill=colors[2], border='black', borderWidth=1)
 
-def playGame(app):
+# Player
+
+def drawPlayer(app):
+    playerX, playerY = app.player.getCenter()
+    drawRect(playerX, playerY, 15, 15, fill='black', align='center')
+
+def playerJump(app):
+    # first X coordinate of the player should reach the X0 coordinate of the parabola
+    # this is a vertical line 
+    # change will be 5 pixels
+    playerX, playerY = app.player.getCenter()
+    currentBlock = app.player.getCurrentBlock()
+    nextBlockX, nextBlockY = app.
+    # to find the X coordinate of the vertex of the parabola, we will use the X coordinate
+    # of the block the player is jumping to
+    vertexX = 
+
+def playGame():
     rows, blockSize, radius, margin = getDimenstions()
 
     wrapperWidth = (rows + 1) * blockSize
@@ -130,7 +176,7 @@ def playGame(app):
     runApp(width=width, height=height)
 
 def main():
-    playGame(app)
+    playGame()
 
 if __name__ == "__main__":
     main()
