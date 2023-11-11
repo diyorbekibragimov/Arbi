@@ -6,19 +6,20 @@ def calculateDistance(size):
     return size // (2**0.5)
 
 def getDimenstions():
-    rows = 3
+    rows = 7
     blockSize = 50
     radius = (2**0.5) * blockSize // 2
     margin = 25
     return (rows, blockSize, radius, margin)
 
 def createBoard(app):
-    board = {}
-    counter = 0
+    Object.id = 0
+    board = []
     for row in range(1, app.rows+1):
         numOfBlocks = row
         currentNumOfBlocks = numOfBlocks
         blocks = []
+
         for col in range(numOfBlocks):
             centerX = 0
             if row % 2 != 0:
@@ -28,9 +29,8 @@ def createBoard(app):
             currentNumOfBlocks -= 1
             centerY = app.wrapperHeight//2 + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
 
-            block = Block(tag=f'block{counter}', center=(centerX, centerY), colors=app.colors)
+            block = Block(tag=f'block', center=(centerX, centerY), position=(row-1, col), colors=app.colors)
             blocks.append(block)
-            counter += 1
         board.append(blocks)
     return board
 
@@ -70,6 +70,13 @@ def calculateCoordinates(app, centerX, centerY):
     rightCoordinates = [rightX1, rightY1, rightX2, rightY2, rightX3, rightY3, rightX4, rightY4]
     return (topCoordinates, leftCoordinates, rightCoordinates)
 
+def isPositionLegal(app, row, col):
+    # We take the absolute value of col since negative values
+    # will always be lower than the row, which is always positive
+    if row < len(app.board) and 0 <= col <= row:
+        return True
+    return False
+
 #################
 
 ################
@@ -77,9 +84,11 @@ def calculateCoordinates(app, centerX, centerY):
 # Models
 
 class Object():
+    id = 0
     def __init__(self, tag: str, center: tuple) -> None:
-        self.tag = tag
+        self.tag = f'{tag}{Object.id}'
         self.center = center # coordinates of the center of the object
+        Object.id += 1
     
     def __repr__(self) -> str:
         return f"{self.tag} at {self.center}"
@@ -88,17 +97,15 @@ class Object():
         return self.center
 
 class Block(Object):
-    def __init__(self, tag: str, center: tuple, colors: list) -> None:
+    def __init__(self, tag: str, center: tuple, position: tuple, colors: list) -> None:
         super().__init__(tag, center)
+        self.position = position
         self.colors = colors
 
 class Player(Object):
-    def __init__(self, tag: str, center: tuple, currentBlock: str) -> None:
+    def __init__(self, tag: str, center: tuple, currentBlock: Block) -> None:
         super().__init__(tag, center)
         self.currentBlock = currentBlock
-    
-    def getCurrentBlock(self) -> str:
-        return self.currentBlock
 
 ################
 
@@ -109,11 +116,12 @@ def onAppStart(app):
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
     app.board = createBoard(app)
+    print(app.board)
     # player starts on the highest col of the pyramid
-    app.player = Object('player', app.board[0][0].getCenter())
+    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0])
     app.playerStates = ['idle', 'jumping']
     app.playerState = app.playerStates[0]
-    app.allowedMovementKeys = ['left', 'up', 'right', 'down']
+    app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.elevationAngle = 0.5
 
 def redrawAll(app):
@@ -123,11 +131,17 @@ def redrawAll(app):
 def onStep(app):
     # if the state of player is jumping
     if app.playerState == app.playerStates[1]:
-        playerJump(app)
+        # playerJump(app)
+        pass
 
 def onKeyPress(app, key):
+
+    if key == 'r':
+        onAppStart(app)
+
     if key in app.allowedMovementKeys:
         app.playerState = app.playerStates[1]
+        playerJump(app, key)
 
 # Pyramid
 
@@ -154,16 +168,27 @@ def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
     drawRect(playerX, playerY, 15, 15, fill='black', align='center')
 
-def playerJump(app):
+def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
     # this is a vertical line 
     # change will be 5 pixels
-    playerX, playerY = app.player.getCenter()
-    currentBlock = app.player.getCurrentBlock()
-    nextBlockX, nextBlockY = app.
-    # to find the X coordinate of the vertex of the parabola, we will use the X coordinate
-    # of the block the player is jumping to
-    vertexX = 
+    row, col = app.player.currentBlock.position
+    keyIndex = app.allowedMovementKeys.index(key)
+    sign = +1 if key in ['down', 'right'] else -1
+    nextRow, nextCol = row + sign, col + sign * (keyIndex % 2)
+    if isPositionLegal(app, nextRow, nextCol):
+        # if it is either down or right, then the row should increase
+        # if it is either up or left, then the row should decrease
+        # we mod by 2 because I want left and up to be indexed from 0 to 1, and not from 2 to 3
+        # I find the indexes simply by looking their indexes in the app.allowedMovementKeys
+        # I think there is a better and, perhaps, clearer way of finding the the index, though.
+        nextBlock = app.board[nextRow][nextCol]
+        app.player.currentBlock = nextBlock
+        app.player.center = nextBlock.center
+        print(nextBlock)
+    else:
+        # the player will fall out of the pyramid
+        print("Falling")
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()
