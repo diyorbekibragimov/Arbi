@@ -77,6 +77,12 @@ def isPositionLegal(app, row, col):
         return True
     return False
 
+# TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
+# to learn how to work with sprites
+
+# TODO: then watch https://www.youtube.com/watch?v=nXOVcOBqFwM
+# to learn how to animate sprites
+
 #################
 
 ################
@@ -110,15 +116,20 @@ class Player(Object):
 ################
 
 def onAppStart(app):
+    # Private
+    __playerSpriteSheetURL = 'media/player.png'
+    __playerImageSize = 24
+
+    # Global
     app.colors = ['slateBlue', 'lightGreen', 'darkGreen']
     app.targetColor = 'yellow'
     app.rows, app.blockSize, app.radius, app.margin = getDimenstions()
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
     app.board = createBoard(app)
-    print(app.board)
     # player starts on the highest col of the pyramid
     app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0])
+    app.playerSpiteSheetImage = (__playerSpriteSheetURL, *app.player.center)
     app.playerStates = ['idle', 'jumping']
     app.playerState = app.playerStates[0]
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
@@ -127,6 +138,7 @@ def onAppStart(app):
 def redrawAll(app):
     drawPyramid(app)
     drawPlayer(app)
+    drawImage(*app.playerSpiteSheetImage)
 
 def onStep(app):
     # if the state of player is jumping
