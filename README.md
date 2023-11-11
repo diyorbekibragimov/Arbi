@@ -1,0 +1,1 @@
+A 2D arcade game inspired by Q*bert written in Python with CMU graphics library as a final term project for 15-112 course (CMU-Q).
