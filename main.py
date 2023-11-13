@@ -184,7 +184,7 @@ def onStep(app):
                 enemy = spawnEnemy(app)
                 enemyCX, enemyCY = enemy.getCenter()
                 currentBlockCX, currentBlockCY = enemy.currentBlock.getCenter()
-                while enemyCY != currentBlockCY:
+                if enemyCY != currentBlockCY:
                     enemyCY += 10
                     enemy.center = (enemyCX, enemyCY)
         app.enemySpawnTime += 1
