@@ -1,4 +1,5 @@
 from cmu_graphics import *
+from random import randint
 
 #################
 # Helper functions
@@ -6,14 +7,13 @@ def calculateDistance(size):
     return size // (2**0.5)
 
 def getDimenstions():
-    rows = 5
+    rows = 7
     blockSize = 50
     radius = (2**0.5) * blockSize // 2
     margin = 25
     return (rows, blockSize, radius, margin)
 
 def createBoard(app):
-    Object.id = 0
     board = []
     for row in range(1, app.rows+1):
         numOfBlocks = row
@@ -23,7 +23,7 @@ def createBoard(app):
         for col in range(numOfBlocks):
             centerX = 0
             if row % 2 != 0:
-                centerX += app.width//2 + app.radius * (co§l - currentNumOfBlocks + 1)
+                centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             else:
                 centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             currentNumOfBlocks -= 1
@@ -77,18 +77,29 @@ def isPositionLegal(app, row, col):
         return True
     return False
 
+def randomEnemySelection(enemies):
+    numberOfEnemies = len(enemies)
+    randomIndex = randint(0, numberOfEnemies-1)
+    return enemies[randomIndex]
+
+# TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
+# to learn how to work with sprites
+
+# TODO: then watch https://www.youtube.com/watch?v=nXOVcOBqFwM
+# to learn how to animate sprites
+
 #################
 
 ################
 
 # Models
 
-class Object():
+class Actor():
     id = 0
     def __init__(self, tag: str, center: tuple) -> None:
-        self.tag = f'{tag}{Object.id}'
+        self.tag = tag
         self.center = center # coordinates of the center of the object
-        Object.id += 1
+        Actor.id += 1
     
     def __repr__(self) -> str:
         return f"{self.tag} at {self.center}"
@@ -96,52 +107,100 @@ class Object():
     def getCenter(self) -> tuple:
         return self.center
 
-class Block(Object):
+class Block(Actor):
+    id = 0
     def __init__(self, tag: str, center: tuple, position: tuple, colors: list) -> None:
+        tag = f'{tag}{Block.id}'
         super().__init__(tag, center)
         self.position = position
         self.colors = colors
+        Block.id += 1
 
-class Player(Object):
+class Player(Actor):
     def __init__(self, tag: str, center: tuple, currentBlock: Block) -> None:
         super().__init__(tag, center)
         self.currentBlock = currentBlock
 
+class Enemy(Actor):
+    id = 0
+    count = 0
+    def __init__(self, tag: str, center: tuple, currentBlock: Block, type: str) -> None:
+        tag = f'{tag}{Enemy.id}'
+        # add a fallin effect when the enemy spawns
+        cx, cy = center
+        cy -= 50
+        center = (cx, cy)
+        super().__init__(tag, center)
+        self.currentBlock = currentBlock
+        self.type = type
+        Enemy.id += 1
+        Enemy.count += 1
+
 ################
 
 def onAppStart(app):
+    # Basic
+    app.stepsPerSecond = 1
+
+    # Private
+    __playerSpriteSheetURL = 'media/player.png'
+    __playerImageSize = 24
+
+    # Global
     app.colors = ['slateBlue', 'lightGreen', 'darkGreen']
     app.targetColor = 'yellow'
     app.rows, app.blockSize, app.radius, app.margin = getDimenstions()
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
     app.board = createBoard(app)
-    print(app.board)
     # player starts on the highest col of the pyramid
     app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0])
+    app.playerSpiteSheetImage = (__playerSpriteSheetURL, *app.player.center)
     app.playerStates = ['idle', 'jumping']
     app.playerState = app.playerStates[0]
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.elevationAngle = 0.5
+    app.gameStates = ['inprogress', 'complete']
+    app.gameState = 'inprogress'
+    app.paused = False
+    app.enemyTypes = ['purple', 'red', 'green']
+    app.enemies = list()
+    app.enemySpawnInterval = 5
+    app.enemySpawnTime = 2
 
 def redrawAll(app):
     drawPyramid(app)
     drawPlayer(app)
+    drawEnemies(app)
 
 def onStep(app):
-    # if the state of player is jumping
-    if app.playerState == app.playerStates[1]:
-        # playerJump(app)
-        pass
+    if not app.paused:
+        # if the state of player is jumping
+        if app.playerState == app.playerStates[1]:
+            # playerJump(app)
+            pass
+        if app.gameState == app.gameStates[0]:
+            if app.enemySpawnTime % app.enemySpawnInterval == 0:
+                enemy = spawnEnemy(app)
+                enemyCX, enemyCY = enemy.getCenter()
+                currentBlockCX, currentBlockCY = enemy.currentBlock.getCenter()
+                if enemyCY != currentBlockCY:
+                    enemyCY += 10
+                    enemy.center = (enemyCX, enemyCY)
+        app.enemySpawnTime += 1
 
 def onKeyPress(app, key):
 
     if key == 'r':
         onAppStart(app)
 
-    if key in app.allowedMovementKeys:
-        app.playerState = app.playerStates[1]
-        playerJump(app, key)
+    if key == 'enter':
+        app.paused = not app.paused
+
+    if not app.paused:
+        if key in app.allowedMovementKeys:
+            app.playerState = app.playerStates[1]
+            playerJump(app, key)
 
 # Pyramid
 
@@ -168,6 +227,11 @@ def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
     drawRect(playerX, playerY, 15, 15, fill='black', align='center')
 
+def drawEnemies(app):
+    for enemy in app.enemies:
+        enemyX, enemyY = enemy.getCenter()
+        drawRect(enemyX, enemyY, 15, 15, fill=enemy.type, align='center')
+
 def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
     # this is a vertical line 
@@ -185,10 +249,17 @@ def playerJump(app, key):
         nextBlock = app.board[nextRow][nextCol]
         app.player.currentBlock = nextBlock
         app.player.center = nextBlock.center
-        print(nextBlock)
     else:
         # the player will fall out of the pyramid
         print("Falling")
+
+def spawnEnemy(app):
+    enemyType = randomEnemySelection(app.enemyTypes)
+    randomBlockIndex = randint(0, 1)
+    randomBlock = app.board[1][randomBlockIndex]
+    newEnemy = Enemy(enemyType, randomBlock.center, randomBlock, enemyType)
+    app.enemies.append(newEnemy)
+    return newEnemy
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()
