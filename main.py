@@ -1,86 +1,9 @@
 from cmu_graphics import *
+from models import (Player, Enemy)
+from helper_functions import *
+
 from random import randint
-
-#################
-# Helper functions
-def calculateDistance(size):
-    return size // (2**0.5)
-
-def getDimenstions():
-    rows = 7
-    blockSize = 50
-    radius = (2**0.5) * blockSize // 2
-    margin = 25
-    return (rows, blockSize, radius, margin)
-
-def createBoard(app):
-    board = []
-    for row in range(1, app.rows+1):
-        numOfBlocks = row
-        currentNumOfBlocks = numOfBlocks
-        blocks = []
-
-        for col in range(numOfBlocks):
-            centerX = 0
-            if row % 2 != 0:
-                centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
-            else:
-                centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
-            currentNumOfBlocks -= 1
-            centerY = app.wrapperHeight//2 + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
-
-            block = Block(tag=f'block', center=(centerX, centerY), position=(row-1, col), colors=app.colors)
-            blocks.append(block)
-        board.append(blocks)
-    return board
-
-def calculateCoordinates(app, centerX, centerY):
-    # coordinates of 4 points of the top side of the block
-    topX1 = centerX - app.radius
-    topX2 = centerX
-    topX3 = centerX + app.radius
-    topX4 = centerX
-
-    topY1 = centerY
-    topY2 = centerY - app.radius // 2
-    topY3 = centerY
-    topY4 = centerY + app.radius // 2
-    topCoordinates = [topX1, topY1, topX2, topY2, topX3, topY3, topX4, topY4]
-
-    # coordinates of 4 points of the left side of the block
-    
-    leftX1 = leftX4 = topX1
-    leftX2 = leftX3 = topX4
-
-    leftY1 = topY1
-    leftY2 = topY4
-    leftY3 = leftY2 + app.blockSize
-    leftY4 = leftY1 + app.blockSize
-    leftCoordinates = [leftX1, leftY1, leftX2, leftY2, leftX3, leftY3, leftX4, leftY4]
-
-    # coordinates of 4 points of the right side of the block
-
-    rightX1 = rightX4 = topX4
-    rightX2 = rightX3 = topX3
-
-    rightY1 = topY4
-    rightY2 = topY3
-    rightY3 = rightY2 + app.blockSize
-    rightY4 = rightY1 + app.blockSize
-    rightCoordinates = [rightX1, rightY1, rightX2, rightY2, rightX3, rightY3, rightX4, rightY4]
-    return (topCoordinates, leftCoordinates, rightCoordinates)
-
-def isPositionLegal(app, row, col):
-    # We take the absolute value of col since negative values
-    # will always be lower than the row, which is always positive
-    if row < len(app.board) and 0 <= col <= row:
-        return True
-    return False
-
-def randomEnemySelection(enemies):
-    numberOfEnemies = len(enemies)
-    randomIndex = randint(0, numberOfEnemies-1)
-    return enemies[randomIndex]
+import time
 
 # TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
 # to learn how to work with sprites
@@ -88,60 +11,9 @@ def randomEnemySelection(enemies):
 # TODO: then watch https://www.youtube.com/watch?v=nXOVcOBqFwM
 # to learn how to animate sprites
 
-#################
-
-################
-
-# Models
-
-class Actor():
-    id = 0
-    def __init__(self, tag: str, center: tuple) -> None:
-        self.tag = tag
-        self.center = center # coordinates of the center of the object
-        Actor.id += 1
-    
-    def __repr__(self) -> str:
-        return f"{self.tag} at {self.center}"
-
-    def getCenter(self) -> tuple:
-        return self.center
-
-class Block(Actor):
-    id = 0
-    def __init__(self, tag: str, center: tuple, position: tuple, colors: list) -> None:
-        tag = f'{tag}{Block.id}'
-        super().__init__(tag, center)
-        self.position = position
-        self.colors = colors
-        Block.id += 1
-
-class Player(Actor):
-    def __init__(self, tag: str, center: tuple, currentBlock: Block) -> None:
-        super().__init__(tag, center)
-        self.currentBlock = currentBlock
-
-class Enemy(Actor):
-    id = 0
-    count = 0
-    def __init__(self, tag: str, center: tuple, currentBlock: Block, type: str) -> None:
-        tag = f'{tag}{Enemy.id}'
-        # add a fallin effect when the enemy spawns
-        cx, cy = center
-        cy -= 50
-        center = (cx, cy)
-        super().__init__(tag, center)
-        self.currentBlock = currentBlock
-        self.type = type
-        Enemy.id += 1
-        Enemy.count += 1
-
 ################
 
 def onAppStart(app):
-    # Basic
-    app.stepsPerSecond = 1
-
     # Private
     __playerSpriteSheetURL = 'media/player.png'
     __playerImageSize = 24
@@ -163,10 +35,15 @@ def onAppStart(app):
     app.gameStates = ['inprogress', 'complete']
     app.gameState = 'inprogress'
     app.paused = False
-    app.enemyTypes = ['purple', 'red', 'green']
+    app.enemyTypes = ['red']
     app.enemies = list()
     app.enemySpawnInterval = 5
-    app.enemySpawnTime = 2
+    app.enemySpawned = None
+    app.maximumEnemiesOnBoard = 3
+    app.fixedInterval = 5
+    app.initialTime = time.time()
+    app.enemyControlInterval = 3
+    app.fixedEnemyControlInterval = app.enemyControlInterval
 
 def redrawAll(app):
     drawPyramid(app)
@@ -175,22 +52,34 @@ def redrawAll(app):
 
 def onStep(app):
     if not app.paused:
+        elapsedTime = time.time() - app.initialTime
         # if the state of player is jumping
         if app.playerState == app.playerStates[1]:
             # playerJump(app)
             pass
         if app.gameState == app.gameStates[0]:
-            if app.enemySpawnTime % app.enemySpawnInterval == 0:
-                enemy = spawnEnemy(app)
-                enemyCX, enemyCY = enemy.getCenter()
-                currentBlockCX, currentBlockCY = enemy.currentBlock.getCenter()
-                if enemyCY != currentBlockCY:
-                    enemyCY += 10
-                    enemy.center = (enemyCX, enemyCY)
-        app.enemySpawnTime += 1
+            if len(app.enemies) < app.maximumEnemiesOnBoard:
+                if elapsedTime - app.enemySpawnInterval > 0:
+                    enemy = spawnEnemy(app)
+                    app.enemySpawnInterval += app.fixedInterval
+                    app.enemySpawned = enemy
+
+        if app.enemySpawned is not None:
+            enemyCX, enemyCY = app.enemySpawned.center
+            _, currentBlockCY = app.enemySpawned.block.center
+            if enemyCY != currentBlockCY:
+                enemyCY += 5
+                app.enemySpawned.center = (enemyCX, enemyCY)
+                index = findModelIndex(app.enemies, app.enemySpawned.id)
+                app.enemies[index] = app.enemySpawned
+            else:
+                app.enenySpawned = None
+        
+        if elapsedTime - app.enemyControlInterval > 0:
+            app.enemyControlInterval += app.fixedEnemyControlInterval
+            enemyControls(app)
 
 def onKeyPress(app, key):
-
     if key == 'r':
         onAppStart(app)
 
@@ -203,7 +92,6 @@ def onKeyPress(app, key):
             playerJump(app, key)
 
 # Pyramid
-
 def drawPyramid(app):
     for row in range(len(app.board)):
         drawRow(app, row)
@@ -257,9 +145,45 @@ def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
     randomBlockIndex = randint(0, 1)
     randomBlock = app.board[1][randomBlockIndex]
-    newEnemy = Enemy(enemyType, randomBlock.center, randomBlock, enemyType)
+    newEnemy = Enemy(tag=enemyType, center=randomBlock.center, 
+                     block=randomBlock, type=enemyType, move=0)
     app.enemies.append(newEnemy)
     return newEnemy
+
+def enemyControls(app):
+    enemies = app.enemies
+    """
+    
+    The game has 2 types of enemies.
+
+    Red: It jumps, reaches the end, and then falls.
+    Simple.
+
+    Green: It jumps, reaches the end, then transforms
+    into a more intelligent snake that follows the player
+    until it either kills him or dies itself.
+    """
+    for enemy in enemies:
+        if enemy.type == 'red':
+            redEnemyControls(app, enemy)
+        else:
+            greenEnemyControls(app, enemy)
+
+def redEnemyControls(app, enemy: Enemy):
+    row, col = enemy.block.position
+    nextRow, nextCol = row + 1, col + enemy.move
+    index = findModelIndex(app.enemies, enemy.id)
+    if isPositionLegal(app, nextRow, nextCol):
+        nextBlock = app.board[nextRow][nextCol]
+        enemy.block = nextBlock
+        enemy.center = nextBlock.center
+        enemy.move = 1 if enemy.move == 0 else 0
+        app.enemies[index] = enemy
+    else:
+        app.enemies.pop(index)
+
+def greenEnemyControls(enemy: Enemy):
+    print("hello!")
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()
