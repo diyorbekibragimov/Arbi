@@ -18,10 +18,14 @@ def onAppStart(app):
     __playerSpriteSheetURL = 'media/player.png'
     __playerImageSize = 24
 
+    app.background = 'black'
+
     # Global
     # Colors
     app.levels = 5
     app.level = 1
+    app.rounds = 3
+    app.round = 1
 
     app.mainColor = 'royalBlue'
     app.sideColors = [
@@ -42,9 +46,10 @@ def onAppStart(app):
     app.playerStates = ['spawn', 'ready', 'jumping']
     app.playerState = app.playerStates[0]
     app.playerLives = 3
+    app.playerNumber = 1
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['inprogress', 'levelComplete', 'playerDied']
+    app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
     app.gameState = 'inprogress'
     app.paused = False
     app.enemyTypes = ['red']
@@ -65,11 +70,14 @@ def onAppStart(app):
     app.playerDeathTime = None
     app.playerRevivalTime = 5
 
+    # Level
+    app.labelMargin = 30
+
 def redrawAll(app):
-    drawBackground(app)
     drawPyramid(app)
-    drawPlayer(app)
     drawEnemies(app)
+    drawPlayer(app)
+    drawInterface(app)
 
 def onStep(app):
     if not app.paused:
@@ -123,6 +131,9 @@ def onStep(app):
             if elapsedTime - app.animationInterval > 0:
                 app.animationInterval += app.animationFixedInterval
                 playLevelTransitionAnimation(app)
+        else:
+            # the animation is over
+            nextGame(app)
 
     elif app.gameState == app.gameStates[2] \
             and app.playerDeathTime is not None \
@@ -157,10 +168,6 @@ def onKeyPress(app, key):
             app.playerState = app.playerStates[1]
             playerJump(app, key)
 
-# Background
-def drawBackground(app):
-    drawRect(0, 0, app.width, app.height, fill='black')
-
 # Pyramid
 def drawPyramid(app):
     for row in range(len(app.board)):
@@ -185,10 +192,52 @@ def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
     drawRect(playerX, playerY, 15, 15, fill='violet', align='center')
 
+# Enemies
+
 def drawEnemies(app):
     for enemy in app.enemies:
         enemyX, enemyY = enemy.getCenter()
         drawRect(enemyX, enemyY, 15, 15, fill=enemy.type, align='center')
+
+# Interface
+
+def drawInterface(app):
+    # Player Label
+    playerLabelColor = 'purple'
+    playerNumberColor = 'yellow'
+    playerLabelText = 'PLAYER'
+
+    playerLabelX = app.labelMargin
+    playerLabelY = app.labelMargin
+
+    playerLabelWidth = 24 * len(playerLabelText)
+    drawLabel(playerLabelText, playerLabelX, playerLabelY, fill=playerLabelColor, bold=True, size=24, align='left')
+
+    playerNumberX = playerLabelX + playerLabelWidth - app.labelMargin
+    playerNumberY = playerLabelY
+    # background for a number
+    drawRect(playerNumberX, playerNumberY, 20, 25, fill='red', align='center')
+    drawLabel(app.playerNumber, playerNumberX, playerNumberY, fill=playerNumberColor, bold=True, size=24)
+
+    # # Score
+    # scoreX = 2.5 * app.labelMargin
+    # scoreY = targetY + app.labelMargin
+
+    # # Target 
+    # targetLabelX = 
+    # targetLabelY = 
+
+    # Remaining Lives
+
+    # Level
+    levelX = app.width - 2.5 * app.labelMargin
+    levelY = app.labelMargin
+    drawLabel(f'LEVEL: {app.level}', levelX, levelY, fill='yellow', bold=True, size=24, align='center')
+
+    # Round
+    roundX = levelX
+    roundY = levelY + 40
+    drawLabel(f'ROUND: {app.round}', roundX, roundY, fill='yellow', bold=True, size=24, align='center')
 
 def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
@@ -282,9 +331,9 @@ def detectCollision(app, enemy: Enemy):
 def checkBlockColors(app):
     if app.rawBlocks == 0:
        # player has successfuly passed the level!
-       app.animationStartTime = time.time()
-       app.gameState = app.gameStates[1]
-       app.paused = True
+        app.animationStartTime = time.time()
+        app.gameState = app.gameStates[1]
+        app.paused = True   
 
 def playLevelTransitionAnimation(app):
     for row in range(len(app.board)):
@@ -294,6 +343,22 @@ def playLevelTransitionAnimation(app):
                 block.mainColor = app.mainColor
             else:
                 block.mainColor = app.targetColor
+
+def nextGame(app):
+    currentRound = app.round
+    currentLevel = app.level
+    onAppStart(app)
+    
+    if currentRound < app.rounds:
+        app.round = currentRound + 1
+    elif currentLevel < app.levels:
+        app.level = currentLevel + 1
+    else:
+        # complete win
+        print('complete win')
+        app.gameState = app.gameStates[1]
+    
+    print(app.round, app.rounds)
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()
