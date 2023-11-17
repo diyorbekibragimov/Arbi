@@ -49,8 +49,11 @@ def onAppStart(app):
     app.playerNumber = 1
 
     # Image sources
+    app.labelImageWidth = 93
     app.playerLabelImage = 'media/interface/player.png'
     app.levelLabelImage = 'media/interface/level.png'
+    app.roundLabelImage = 'media/interface/round.png'
+    app.numberImage = 'media/interface/'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
@@ -236,12 +239,22 @@ def drawInterface(app):
     # Level
     levelX = app.width - 5 * app.labelMargin
     levelY = app.labelMargin
+    levelWidth = 93
     drawImage(app.levelLabelImage, levelX, levelY)
+    # Level Number
+    numberMargin = 15
+    levelNumberX = levelX + app.labelImageWidth + numberMargin 
+    levelNumberY = levelY
+    drawImage(app.numberImage+f'{app.level}.png', levelNumberX, levelNumberY)
 
     # Round
     roundX = levelX
     roundY = levelY + 40
-    drawLabel(f'ROUND: {app.round}', roundX, roundY, fill='yellow', bold=True, size=24, align='center')
+    drawImage(app.roundLabelImage, roundX, roundY)
+    # RoundNumber
+    roundNumberX = roundX + app.labelImageWidth + numberMargin 
+    roundNumberY = roundY
+    drawImage(app.numberImage+f'{app.level}.png', roundNumberX, roundNumberY)
 
 def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
