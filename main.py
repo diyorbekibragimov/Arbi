@@ -3,7 +3,7 @@ from models import (Player, Enemy)
 from helper_functions import *
 
 from random import randint
-import time
+import time, math
 
 # TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
 # to learn how to work with sprites
@@ -19,20 +19,31 @@ def onAppStart(app):
     __playerImageSize = 24
 
     # Global
-    app.colors = ['slateBlue', 'lightGreen', 'darkGreen']
-    app.targetColor = 'yellow'
+    # Colors
+    app.levels = 5
+    app.level = 1
+
+    app.mainColor = 'royalBlue'
+    app.Sidecolors = [
+        ['cadetBlue', 'slateGray']
+    ]
+    app.targetColors = ['yellow', 'blue', 'blueViolet']
+    app.targetColor = app.targetColors[app.level-1]
+
     app.rows, app.blockSize, app.radius, app.margin = getDimenstions()
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
     app.board = createBoard(app)
+    app.rawBlocks = countBlocks(app.board)
+
     # player starts on the highest col of the pyramid
     app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0])
     app.playerSpiteSheetImage = (__playerSpriteSheetURL, *app.player.center)
     app.playerStates = ['idle', 'jumping']
     app.playerState = app.playerStates[0]
+
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.elevationAngle = 0.5
-    app.gameStates = ['inprogress', 'complete']
+    app.gameStates = ['inprogress', 'levelComplete']
     app.gameState = 'inprogress'
     app.paused = False
     app.enemyTypes = ['red']
@@ -45,13 +56,21 @@ def onAppStart(app):
     app.enemyControlInterval = 3
     app.fixedEnemyControlInterval = app.enemyControlInterval
 
+    app.animationStartTime = None
+    app.animationCount = 7
+    app.animationInterval = 1
+    app.animationFixedInterval = app.animationInterval
+
 def redrawAll(app):
+    drawBackground(app)
     drawPyramid(app)
     drawPlayer(app)
     drawEnemies(app)
 
 def onStep(app):
     if not app.paused:
+        checkBlockColors(app)
+        enemyControls(app)
         elapsedTime = time.time() - app.initialTime
         # if the state of player is jumping
         if app.playerState == app.playerStates[1]:
@@ -74,10 +93,18 @@ def onStep(app):
                 app.enemies[index] = app.enemySpawned
             else:
                 app.enenySpawned = None
-        
-        if elapsedTime - app.enemyControlInterval > 0:
-            app.enemyControlInterval += app.fixedEnemyControlInterval
-            enemyControls(app)
+    elif app.gameState == app.gameStates[1]:
+        # if the game level is complete, display a short animation.
+        elapsedTime = time.time() - app.animationStartTime
+        if elapsedTime - app.animationCount < 0:
+            if elapsedTime - app.animationInterval > 0:
+                app.animationInterval += app.animationFixedInterval
+                firstBlock = app.board[0][0]
+                if firstBlock.mainColor == app.targetColor:
+                    firstBlock.mainColor = app.mainColor
+                else:
+                    firstBlock.mainColor = app.targetColor
+                print('color change')
 
 def onKeyPress(app, key):
     if key == 'r':
@@ -91,6 +118,10 @@ def onKeyPress(app, key):
             app.playerState = app.playerStates[1]
             playerJump(app, key)
 
+# Background
+def drawBackground(app):
+    drawRect(0, 0, app.width, app.height, fill='black')
+
 # Pyramid
 def drawPyramid(app):
     for row in range(len(app.board)):
@@ -101,13 +132,13 @@ def drawRow(app, row):
     for block in nRow:
         centerX, centerY = block.center
         top, left, right = calculateCoordinates(app, centerX, centerY)
-        drawBlock(top, left, right, block.colors)
+        drawBlock(top, left, right, block.mainColor, block.sideColors)
 
-def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, colors):
+def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainColor, sideColors):
     # drawing top
-    drawPolygon(*topCoordinates, fill=colors[0], border='black', borderWidth=1)
-    drawPolygon(*leftSideCoordinates, fill=colors[1], border='black', borderWidth = 1)
-    drawPolygon(*rightSideCoordinates, fill=colors[2], border='black', borderWidth=1)
+    drawPolygon(*topCoordinates, fill=mainColor, border='black', borderWidth=1)
+    drawPolygon(*leftSideCoordinates, fill=sideColors[0], border='black', borderWidth = 1)
+    drawPolygon(*rightSideCoordinates, fill=sideColors[1], border='black', borderWidth=1)
 
 # Player
 
@@ -124,7 +155,7 @@ def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
     # this is a vertical line 
     # change will be 5 pixels
-    row, col = app.player.currentBlock.position
+    row, col = app.player.block.position
     keyIndex = app.allowedMovementKeys.index(key)
     sign = +1 if key in ['down', 'right'] else -1
     nextRow, nextCol = row + sign, col + sign * (keyIndex % 2)
@@ -135,7 +166,10 @@ def playerJump(app, key):
         # I find the indexes simply by looking their indexes in the app.allowedMovementKeys
         # I think there is a better and, perhaps, clearer way of finding the the index, though.
         nextBlock = app.board[nextRow][nextCol]
-        app.player.currentBlock = nextBlock
+        if nextBlock.mainColor != app.targetColor:
+            nextBlock.mainColor = app.targetColor
+            app.rawBlocks -= 1
+        app.player.block = nextBlock
         app.player.center = nextBlock.center
     else:
         # the player will fall out of the pyramid
@@ -153,7 +187,6 @@ def spawnEnemy(app):
 def enemyControls(app):
     enemies = app.enemies
     """
-    
     The game has 2 types of enemies.
 
     Red: It jumps, reaches the end, and then falls.
@@ -164,10 +197,15 @@ def enemyControls(app):
     until it either kills him or dies itself.
     """
     for enemy in enemies:
-        if enemy.type == 'red':
-            redEnemyControls(app, enemy)
-        else:
-            greenEnemyControls(app, enemy)
+        # collision
+        detectCollision(app.player, enemy)
+        # movement
+        elapsedTime = time.time() - enemy.moveTime
+        if elapsedTime - app.enemyControlInterval > 0:
+            if enemy.type == 'red':
+                redEnemyControls(app, enemy)
+            else:
+                greenEnemyControls(app, enemy)
 
 def redEnemyControls(app, enemy: Enemy):
     row, col = enemy.block.position
@@ -178,12 +216,26 @@ def redEnemyControls(app, enemy: Enemy):
         enemy.block = nextBlock
         enemy.center = nextBlock.center
         enemy.move = 1 if enemy.move == 0 else 0
+        enemy.moveTime += app.fixedEnemyControlInterval
         app.enemies[index] = enemy
     else:
         app.enemies.pop(index)
 
 def greenEnemyControls(enemy: Enemy):
     print("hello!")
+
+def detectCollision(obj1: Player, obj2: Enemy):
+    obj1Cx, obj1Cy = obj1.center
+    obj2Cx, obj2Cy = obj2.center
+    if obj1Cx == obj2Cx and obj1Cy == obj2Cy:
+        print("Collision with", obj2)
+
+def checkBlockColors(app):
+    if app.rawBlocks == 0:
+       # player has successfuly passed the level!
+       app.animationStartTime = time.time()
+       app.gameState = app.gameStates[1]
+       app.paused = True
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()

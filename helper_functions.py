@@ -1,3 +1,4 @@
+import copy
 from random import randint
 from models import Block
 
@@ -26,8 +27,10 @@ def createBoard(app):
                 centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             currentNumOfBlocks -= 1
             centerY = app.wrapperHeight//2 + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
-
-            block = Block(tag=f'block', center=(centerX, centerY), position=(row-1, col), colors=app.colors)
+            sideColors = app.colors[app.level-1][1:]
+            block = Block(tag=f'block', center=(centerX, centerY), 
+                          position=(row-1, col), mainColor=app.mainColor, 
+                          sideColors=sideColors)
             blocks.append(block)
         board.append(blocks)
     return board
@@ -86,3 +89,9 @@ def findModelIndex(modelList: list, id: int):
         obj = modelList[modelIndex]
         if obj.id == id:
             return modelIndex
+
+def countBlocks(pyramid: list):
+    if len(pyramid) == 1:
+        return 1
+    else:
+        return len(pyramid) + countBlocks(pyramid[1:])

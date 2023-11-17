@@ -1,3 +1,5 @@
+import time
+
 class Actor():
     id = 0
     def __init__(self, tag: str, center: tuple) -> None:
@@ -13,17 +15,18 @@ class Actor():
 
 class Block(Actor):
     id = 0
-    def __init__(self, tag: str, center: tuple, position: tuple, colors: list) -> None:
+    def __init__(self, tag: str, center: tuple, position: tuple, mainColor: str, sideColors: list) -> None:
         tag = f'{tag}{Block.id}'
         super().__init__(tag, center)
         self.position = position
-        self.colors = colors
+        self.mainColor = mainColor
+        self.sideColors = sideColors
         Block.id += 1
 
 class Player(Actor):
-    def __init__(self, tag: str, center: tuple, currentBlock: Block) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block) -> None:
         super().__init__(tag, center)
-        self.currentBlock = currentBlock
+        self.block = block
 
 class Enemy(Actor):
     id = 0
@@ -40,6 +43,7 @@ class Enemy(Actor):
         self.block = block
         self.type = type
         self.move = move
+        self.moveTime = time.time()
 
         Enemy.id += 1
         Enemy.count += 1
