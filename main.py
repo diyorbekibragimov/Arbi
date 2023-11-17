@@ -50,6 +50,7 @@ def onAppStart(app):
 
     # Image sources
     app.playerLabelImage = 'media/interface/player.png'
+    app.levelLabelImage = 'media/interface/level.png'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
@@ -233,9 +234,9 @@ def drawInterface(app):
     # Remaining Lives
 
     # Level
-    levelX = app.width - 2.5 * app.labelMargin
+    levelX = app.width - 5 * app.labelMargin
     levelY = app.labelMargin
-    drawLabel(f'LEVEL: {app.level}', levelX, levelY, fill='yellow', bold=True, size=24, align='center')
+    drawImage(app.levelLabelImage, levelX, levelY)
 
     # Round
     roundX = levelX
