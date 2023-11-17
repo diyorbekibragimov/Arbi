@@ -197,6 +197,7 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
 
 def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
+    drawImage(app.playerSpiteSheetImage)
     drawRect(playerX, playerY, 15, 15, fill='violet', align='center')
 
 # Enemies
@@ -254,7 +255,7 @@ def drawInterface(app):
     # RoundNumber
     roundNumberX = roundX + app.labelImageWidth + numberMargin 
     roundNumberY = roundY
-    drawImage(app.numberImage+f'{app.level}.png', roundNumberX, roundNumberY)
+    drawImage(app.numberImage+f'{app.round}.png', roundNumberX, roundNumberY)
 
 def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
@@ -368,6 +369,7 @@ def nextGame(app):
     
     if currentRound < app.rounds:
         app.round = currentRound + 1
+        app.level = currentLevel
     elif currentLevel < app.levels:
         app.level = currentLevel + 1
     else:
