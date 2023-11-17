@@ -48,6 +48,9 @@ def onAppStart(app):
     app.playerLives = 3
     app.playerNumber = 1
 
+    # Image sources
+    app.playerLabelImage = 'media/interface/player.png'
+
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
     app.gameState = 'inprogress'
@@ -211,13 +214,13 @@ def drawInterface(app):
     playerLabelY = app.labelMargin
 
     playerLabelWidth = 24 * len(playerLabelText)
-    drawLabel(playerLabelText, playerLabelX, playerLabelY, fill=playerLabelColor, bold=True, size=24, align='left')
+    drawImage(app.playerLabelImage, playerLabelX, playerLabelY)
 
-    playerNumberX = playerLabelX + playerLabelWidth - app.labelMargin
-    playerNumberY = playerLabelY
-    # background for a number
-    drawRect(playerNumberX, playerNumberY, 20, 25, fill='red', align='center')
-    drawLabel(app.playerNumber, playerNumberX, playerNumberY, fill=playerNumberColor, bold=True, size=24)
+    # playerNumberX = playerLabelX + playerLabelWidth - app.labelMargin
+    # playerNumberY = playerLabelY
+    # # background for a number
+    # drawRect(playerNumberX, playerNumberY, 20, 25, fill='red', align='center')
+    # drawLabel(app.playerNumber, playerNumberX, playerNumberY, fill=playerNumberColor, bold=True, size=24)
 
     # # Score
     # scoreX = 2.5 * app.labelMargin
