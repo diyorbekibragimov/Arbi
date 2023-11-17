@@ -24,7 +24,7 @@ def onAppStart(app):
     app.level = 1
 
     app.mainColor = 'royalBlue'
-    app.Sidecolors = [
+    app.sideColors = [
         ['cadetBlue', 'slateGray']
     ]
     app.targetColors = ['yellow', 'blue', 'blueViolet']
@@ -39,11 +39,12 @@ def onAppStart(app):
     # player starts on the highest col of the pyramid
     app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0])
     app.playerSpiteSheetImage = (__playerSpriteSheetURL, *app.player.center)
-    app.playerStates = ['idle', 'jumping']
+    app.playerStates = ['spawn', 'ready', 'jumping']
     app.playerState = app.playerStates[0]
+    app.playerLives = 3
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['inprogress', 'levelComplete']
+    app.gameStates = ['inprogress', 'levelComplete', 'playerDied']
     app.gameState = 'inprogress'
     app.paused = False
     app.enemyTypes = ['red']
@@ -57,9 +58,12 @@ def onAppStart(app):
     app.fixedEnemyControlInterval = app.enemyControlInterval
 
     app.animationStartTime = None
-    app.animationCount = 7
-    app.animationInterval = 1
+    app.animationCount = 5
+    app.animationInterval = 0.3
     app.animationFixedInterval = app.animationInterval
+
+    app.playerDeathTime = None
+    app.playerRevivalTime = 5
 
 def redrawAll(app):
     drawBackground(app)
@@ -69,14 +73,32 @@ def redrawAll(app):
 
 def onStep(app):
     if not app.paused:
+        if app.playerState == app.playerStates[0]:
+            # if the player has just spawned, it needs
+            # to fall into the topmost block on the pyramid
+            # since at the initialization of the instance
+            # of the player, the y coordinate of the player
+            # is set to 100 - topBlock y coordinate
+            # to create a simple animation of falling
+            playerCX, playerCY = app.player.getCenter()
+            _, currentBlockCY = app.player.block.getCenter()
+            if playerCY != currentBlockCY:
+                playerCY += 5
+                app.player.changeCenter((playerCX, playerCY))
+            else:
+                app.playerState = app.playerStates[1] # the player is ready
+                app.board[0][0].mainColor = app.targetColor
+                app.rawBlocks -= 1
+    
         checkBlockColors(app)
         enemyControls(app)
-        elapsedTime = time.time() - app.initialTime
         # if the state of player is jumping
         if app.playerState == app.playerStates[1]:
             # playerJump(app)
             pass
+
         if app.gameState == app.gameStates[0]:
+            elapsedTime = time.time() - app.initialTime
             if len(app.enemies) < app.maximumEnemiesOnBoard:
                 if elapsedTime - app.enemySpawnInterval > 0:
                     enemy = spawnEnemy(app)
@@ -84,27 +106,44 @@ def onStep(app):
                     app.enemySpawned = enemy
 
         if app.enemySpawned is not None:
-            enemyCX, enemyCY = app.enemySpawned.center
-            _, currentBlockCY = app.enemySpawned.block.center
+            enemyCX, enemyCY = app.enemySpawned.getCenter()
+            _, currentBlockCY = app.enemySpawned.block.getCenter()
             if enemyCY != currentBlockCY:
                 enemyCY += 5
-                app.enemySpawned.center = (enemyCX, enemyCY)
+                app.enemySpawned.changeCenter((enemyCX, enemyCY))
                 index = findModelIndex(app.enemies, app.enemySpawned.id)
                 app.enemies[index] = app.enemySpawned
             else:
                 app.enenySpawned = None
+
     elif app.gameState == app.gameStates[1]:
         # if the game level is complete, display a short animation.
         elapsedTime = time.time() - app.animationStartTime
         if elapsedTime - app.animationCount < 0:
             if elapsedTime - app.animationInterval > 0:
                 app.animationInterval += app.animationFixedInterval
-                firstBlock = app.board[0][0]
-                if firstBlock.mainColor == app.targetColor:
-                    firstBlock.mainColor = app.mainColor
-                else:
-                    firstBlock.mainColor = app.targetColor
-                print('color change')
+                playLevelTransitionAnimation(app)
+
+    elif app.gameState == app.gameStates[2] \
+            and app.playerDeathTime is not None \
+            and app.playerLives > 0:
+        # the player has died because of falling or collision with the enemy
+        elapsedTime = time.time() - app.playerDeathTime
+        if elapsedTime - app.playerRevivalTime > 0:
+            # the playerGetsRevived and the game continues
+            # the progress and the position of the player does not change
+            app.paused = False
+            app.deathTime = None
+            # the game state changes to 'inprogress'
+            app.gameState = app.gameStates[0]
+            # the enemies gets removed, giving a player a headstart
+            app.enemies.clear()
+            # the basically sort of 'restarts' with the initial time changing
+            # to the current time.
+            app.enemySpawnInterval += app.playerRevivalTime
+    
+    if app.playerLives == 0:
+        onAppStart(app)
 
 def onKeyPress(app, key):
     if key == 'r':
@@ -113,7 +152,7 @@ def onKeyPress(app, key):
     if key == 'enter':
         app.paused = not app.paused
 
-    if not app.paused:
+    if not app.paused and app.playerState != app.playerStates[0]:
         if key in app.allowedMovementKeys:
             app.playerState = app.playerStates[1]
             playerJump(app, key)
@@ -130,7 +169,7 @@ def drawPyramid(app):
 def drawRow(app, row):
     nRow = app.board[row]
     for block in nRow:
-        centerX, centerY = block.center
+        centerX, centerY = block.getCenter()
         top, left, right = calculateCoordinates(app, centerX, centerY)
         drawBlock(top, left, right, block.mainColor, block.sideColors)
 
@@ -144,7 +183,7 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
 
 def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
-    drawRect(playerX, playerY, 15, 15, fill='black', align='center')
+    drawRect(playerX, playerY, 15, 15, fill='violet', align='center')
 
 def drawEnemies(app):
     for enemy in app.enemies:
@@ -170,7 +209,7 @@ def playerJump(app, key):
             nextBlock.mainColor = app.targetColor
             app.rawBlocks -= 1
         app.player.block = nextBlock
-        app.player.center = nextBlock.center
+        app.player.changeCenter(nextBlock.getCenter())
     else:
         # the player will fall out of the pyramid
         print("Falling")
@@ -179,7 +218,7 @@ def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
     randomBlockIndex = randint(0, 1)
     randomBlock = app.board[1][randomBlockIndex]
-    newEnemy = Enemy(tag=enemyType, center=randomBlock.center, 
+    newEnemy = Enemy(tag=enemyType, center=randomBlock.getCenter(), 
                      block=randomBlock, type=enemyType, move=0)
     app.enemies.append(newEnemy)
     return newEnemy
@@ -198,7 +237,7 @@ def enemyControls(app):
     """
     for enemy in enemies:
         # collision
-        detectCollision(app.player, enemy)
+        detectCollision(app, enemy)
         # movement
         elapsedTime = time.time() - enemy.moveTime
         if elapsedTime - app.enemyControlInterval > 0:
@@ -214,7 +253,7 @@ def redEnemyControls(app, enemy: Enemy):
     if isPositionLegal(app, nextRow, nextCol):
         nextBlock = app.board[nextRow][nextCol]
         enemy.block = nextBlock
-        enemy.center = nextBlock.center
+        enemy.changeCenter(nextBlock.getCenter())
         enemy.move = 1 if enemy.move == 0 else 0
         enemy.moveTime += app.fixedEnemyControlInterval
         app.enemies[index] = enemy
@@ -224,11 +263,21 @@ def redEnemyControls(app, enemy: Enemy):
 def greenEnemyControls(enemy: Enemy):
     print("hello!")
 
-def detectCollision(obj1: Player, obj2: Enemy):
-    obj1Cx, obj1Cy = obj1.center
-    obj2Cx, obj2Cy = obj2.center
-    if obj1Cx == obj2Cx and obj1Cy == obj2Cy:
-        print("Collision with", obj2)
+def detectCollision(app, enemy: Enemy):
+    playerCx, playerCy = app.player.getCenter()
+    enemyCx, enemyCy = enemy.getCenter()
+    if playerCx == enemyCx and playerCy == enemyCy:
+        # the player has collided with one of the enemies
+        # thus, one life of the player gets removed
+        if app.playerLives > 0:
+            app.playerLives -= 1
+        # the game gets paused
+        app.paused = True
+        # the state of the game changes to 'playerDied'
+        app.gameState = app.gameStates[2]
+        # setting the death time of the player
+        # this is needed to count the time till the revival
+        app.playerDeathTime = time.time()
 
 def checkBlockColors(app):
     if app.rawBlocks == 0:
@@ -236,6 +285,15 @@ def checkBlockColors(app):
        app.animationStartTime = time.time()
        app.gameState = app.gameStates[1]
        app.paused = True
+
+def playLevelTransitionAnimation(app):
+    for row in range(len(app.board)):
+        for col in range(len(app.board[row])):
+            block = app.board[row][col]
+            if block.mainColor == app.targetColor:
+                block.mainColor = app.mainColor
+            else:
+                block.mainColor = app.targetColor
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()

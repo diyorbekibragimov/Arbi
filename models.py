@@ -12,6 +12,9 @@ class Actor():
 
     def getCenter(self) -> tuple:
         return self.center
+    
+    def changeCenter(self, newCenter: tuple):
+        self.center = newCenter
 
 class Block(Actor):
     id = 0
@@ -25,7 +28,11 @@ class Block(Actor):
 
 class Player(Actor):
     def __init__(self, tag: str, center: tuple, block: Block) -> None:
+        cx, cy = center
+        cy -= 100
+        center = (cx, cy)
         super().__init__(tag, center)
+
         self.block = block
 
 class Enemy(Actor):
