@@ -27,13 +27,15 @@ class Block(Actor):
         Block.id += 1
 
 class Player(Actor):
-    def __init__(self, tag: str, center: tuple, block: Block) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, direction: str, image: str) -> None:
         cx, cy = center
         cy -= 100
         center = (cx, cy)
         super().__init__(tag, center)
 
         self.block = block
+        self.direction = direction
+        self.image = image
 
 class Enemy(Actor):
     id = 0
