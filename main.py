@@ -56,7 +56,9 @@ def onAppStart(app):
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
     app.gameState = 'inprogress'
     app.paused = False
+
     app.enemyTypes = ['red']
+    app.enemyImageBase = 'media/spritesheet/enemies/'
     app.enemies = list()
     app.enemySpawnInterval = 5
     app.enemySpawned = None
@@ -65,6 +67,9 @@ def onAppStart(app):
     app.initialTime = time.time()
     app.enemyControlInterval = 3
     app.fixedEnemyControlInterval = app.enemyControlInterval
+    
+    app.enemyImageChangeInterval = 0.3
+    app.fixedEnemyImageChangeInterval = 0.3
 
     app.animationStartTime = None
     app.animationCount = 5
@@ -212,7 +217,8 @@ def drawPlayer(app):
 def drawEnemies(app):
     for enemy in app.enemies:
         enemyX, enemyY = enemy.getCenter()
-        drawRect(enemyX, enemyY, 15, 15, fill=enemy.type, align='center')
+        imageURL = app.enemyImageBase + f'{enemy.type}{enemy.imageId}.png'
+        drawImage(imageURL, enemyX, enemyY, align='bottom')
 
 # Interface
 
@@ -293,7 +299,7 @@ def spawnEnemy(app):
     randomBlockIndex = randint(0, 1)
     randomBlock = app.board[1][randomBlockIndex]
     newEnemy = Enemy(tag=enemyType, center=randomBlock.getCenter(), 
-                     block=randomBlock, type=enemyType, move=0)
+                     block=randomBlock, type=enemyType, move=0, imageId=1)
     app.enemies.append(newEnemy)
     return newEnemy
 
@@ -311,6 +317,7 @@ def enemyControls(app):
     """
     for enemy in enemies:
         # collision
+        animateEnemy(app, enemy)
         detectCollision(app, enemy)
         # movement
         elapsedTime = time.time() - enemy.moveTime
@@ -319,6 +326,12 @@ def enemyControls(app):
                 redEnemyControls(app, enemy)
             else:
                 greenEnemyControls(app, enemy)
+
+def animateEnemy(app, enemy):
+    elapsedTime = time.time() - enemy.spawnTime
+    if elapsedTime - enemy.imageChangeInterval > 0:
+        enemy.imageId = 2 if enemy.imageId == 1 else 1
+        enemy.increaseImageChangeInterval(app.fixedEnemyImageChangeInterval)
 
 def redEnemyControls(app, enemy: Enemy):
     row, col = enemy.block.position

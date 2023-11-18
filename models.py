@@ -40,7 +40,7 @@ class Player(Actor):
 class Enemy(Actor):
     id = 0
     count = 0
-    def __init__(self, tag: str, center: tuple, block: Block, type: str, move: int) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, type: str, move: int, imageId: int) -> None:
         tag = f'{tag}{Enemy.id}'
         # add a falling effect when the enemy spawns
         cx, cy = center
@@ -52,7 +52,13 @@ class Enemy(Actor):
         self.block = block
         self.type = type
         self.move = move
+        self.spawnTime = time.time()
         self.moveTime = time.time()
+        self.imageChangeInterval = 0.3
+        self.imageId = imageId
 
         Enemy.id += 1
         Enemy.count += 1
+    
+    def increaseImageChangeInterval(self, interval: int):
+        self.imageChangeInterval += interval
