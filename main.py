@@ -199,7 +199,7 @@ def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
     
     drawRect(playerX, playerY, 40, 40, fill='violet', align='center')
-    drawImage('media/spritesheet/player-idle-1.gif', playerX, playerY, align='center')
+    drawImage('media/spritesheet/player-idle-2.png', playerX, playerY, align='center')
 
 # Enemies
 
