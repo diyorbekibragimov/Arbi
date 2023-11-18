@@ -179,7 +179,7 @@ def onKeyPress(app, key):
                 app.player.direction = 'up-left'
             elif key == 'right':
                 app.player.direction = 'down-right'
-            app.player.image = app.playerImageBase + f'{app.player.direction}-{app.playerState}.png'
+            #app.player.image = app.playerImageBase + f'{app.player.direction}-{app.playerState}.png'
             app.playerState = app.playerStates[2]
             playerJump(app, key)
 
