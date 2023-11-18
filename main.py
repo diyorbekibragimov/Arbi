@@ -205,7 +205,13 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
 
 def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
+<<<<<<< HEAD
+    
+    drawRect(playerX, playerY, 40, 40, fill='violet', align='center')
+    drawImage('media/spritesheet/player-idle-2.png', playerX, playerY, align='center')
+=======
     drawImage(app.player.image, playerX, playerY, align='bottom')
+>>>>>>> b452d6d80217597b17b0709c0742bbd2f277b9af
 
 # Enemies
 
