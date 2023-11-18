@@ -15,7 +15,7 @@ import time, math
 
 def onAppStart(app):
     # Private
-    __playerSpriteSheetURL = 'media/player.png'
+    __playerSpriteSheetURL = 'media/spritesheet/player-idle-4.png'
     __playerImageSize = 24
 
     app.background = 'black'
@@ -197,8 +197,9 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
 
 def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
-    drawImage(app.playerSpiteSheetImage)
-    drawRect(playerX, playerY, 15, 15, fill='violet', align='center')
+    
+    drawRect(playerX, playerY, 40, 40, fill='violet', align='center')
+    drawImage('media/spritesheet/player-idle-1.gif', playerX, playerY, align='center')
 
 # Enemies
 
