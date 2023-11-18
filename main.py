@@ -14,10 +14,6 @@ import time, math
 ################
 
 def onAppStart(app):
-    # Private
-    __playerSpriteSheetURL = 'media/spritesheet/player-idle-4.png'
-    __playerImageSize = 24
-
     app.background = 'black'
 
     # Global
@@ -41,9 +37,10 @@ def onAppStart(app):
     app.rawBlocks = countBlocks(app.board)
 
     # player starts on the highest col of the pyramid
-    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0])
-    app.playerSpiteSheetImage = (__playerSpriteSheetURL, *app.player.center)
-    app.playerStates = ['spawn', 'ready', 'jumping']
+    app.playerImageBase = 'media/spritesheet/player-'
+    app.playerImage = app.playerImageBase + 'down-right-idle.png'
+    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0], 'right', app.playerImage)
+    app.playerStates = ['spawn', 'idle', 'jump']
     app.playerState = app.playerStates[0]
     app.playerLives = 3
     app.playerNumber = 1
@@ -101,14 +98,14 @@ def onStep(app):
                 playerCY += 5
                 app.player.changeCenter((playerCX, playerCY))
             else:
-                app.playerState = app.playerStates[1] # the player is ready
+                app.playerState = app.playerStates[1] # the player is ready or idle.
                 app.board[0][0].mainColor = app.targetColor
                 app.rawBlocks -= 1
     
         checkBlockColors(app)
         enemyControls(app)
         # if the state of player is jumping
-        if app.playerState == app.playerStates[1]:
+        if app.playerState == app.playerStates[2]:
             # playerJump(app)
             pass
 
@@ -172,7 +169,18 @@ def onKeyPress(app, key):
 
     if not app.paused and app.playerState != app.playerStates[0]:
         if key in app.allowedMovementKeys:
-            app.playerState = app.playerStates[1]
+            # the player is jumping
+            app.playerState = app.playerStates[2]
+            if key == 'down':
+                app.player.direction = 'down-left'
+            elif key == 'up':
+                app.player.direction = 'up-right'
+            elif key == 'left':
+                app.player.direction = 'up-left'
+            elif key == 'right':
+                app.player.direction = 'down-right'
+            app.player.image = app.playerImageBase + f'{app.player.direction}-{app.playerState}.png'
+            app.playerState = app.playerStates[2]
             playerJump(app, key)
 
 # Pyramid
@@ -197,9 +205,7 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
 
 def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
-    
-    drawRect(playerX, playerY, 40, 40, fill='violet', align='center')
-    drawImage('media/spritesheet/player-idle-1.gif', playerX, playerY, align='center')
+    drawImage(app.player.image, playerX, playerY, align='bottom')
 
 # Enemies
 
