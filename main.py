@@ -20,7 +20,7 @@ def onAppStart(app):
     # Colors
     app.levels = 5
     app.level = 1
-    app.rounds = 4
+    app.rounds = 3
     app.round = 1
 
     # Initial Completion Bonus
@@ -31,6 +31,7 @@ def onAppStart(app):
     # Bonus Animation
     app.bonusAnimationStart = None
     app.bonusAnimationDuration = 5
+    print(app.bonuses)
 
     app.mainColor = 'royalBlue'
     app.sideColors = [
@@ -431,7 +432,8 @@ def nextGame(app):
         print('complete win')
         app.gameState = app.gameStates[1]
     
-    app.player.score = app.bonuses[f'Level{app.level}'][app.round-2]
+    app.player.score += 
+    print(app.player.score)
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()

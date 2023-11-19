@@ -99,7 +99,7 @@ def getBonusData(app):
     bonuses = {}
     for l in range(app.levels):
         levelName = f'Level{l+1}'
-        for _ in range(4):
+        for _ in range(3):
             bonuses[levelName] = bonuses.get(levelName, [])
             bonuses[levelName].append(app.completionBonus)
             if app.completionBonus < app.maxBonus:
