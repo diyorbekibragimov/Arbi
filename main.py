@@ -47,10 +47,11 @@ def onAppStart(app):
 
     # Image sources
     app.labelImageWidth = 93
-    app.playerLabelImage = 'media/interface/player.png'
-    app.levelLabelImage = 'media/interface/level.png'
-    app.roundLabelImage = 'media/interface/round.png'
-    app.numberImage = 'media/interface/'
+    app.interfaceBaseImage = 'media/interface/' 
+    app.playerLabelImage = app.interfaceBaseImage + 'player.png'
+    app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
+    app.levelLabelImage = app.interfaceBaseImage + 'level.png'
+    app.roundLabelImage = app.interfaceBaseImage + 'round.png'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
@@ -234,6 +235,15 @@ def drawInterface(app):
     playerLabelWidth = 24 * len(playerLabelText)
     drawImage(app.playerLabelImage, playerLabelX, playerLabelY)
 
+    # Score
+    
+
+    # Lives counter
+    for life in range(app.playerLives):
+        lifeCx = playerLabelX + app.labelMargin * life
+        lifeCy = playerLabelY + 2 * app.labelMargin
+        drawImage(app.playerLifeImage, lifeCx, lifeCy)
+
     # playerNumberX = playerLabelX + playerLabelWidth - app.labelMargin
     # playerNumberY = playerLabelY
     # # background for a number
@@ -248,27 +258,27 @@ def drawInterface(app):
     # targetLabelX = 
     # targetLabelY = 
 
-    # Remaining Lives
-
     # Level
     levelX = app.width - 5 * app.labelMargin
     levelY = app.labelMargin
     levelWidth = 93
     drawImage(app.levelLabelImage, levelX, levelY)
+
     # Level Number
     numberMargin = 15
     levelNumberX = levelX + app.labelImageWidth + numberMargin 
     levelNumberY = levelY
-    drawImage(app.numberImage+f'{app.level}.png', levelNumberX, levelNumberY)
+    drawImage(app.interfaceBaseImage+f'{app.level}.png', levelNumberX, levelNumberY)
 
     # Round
     roundX = levelX
     roundY = levelY + 40
     drawImage(app.roundLabelImage, roundX, roundY)
+
     # RoundNumber
     roundNumberX = roundX + app.labelImageWidth + numberMargin 
     roundNumberY = roundY
-    drawImage(app.numberImage+f'{app.round}.png', roundNumberX, roundNumberY)
+    drawImage(app.interfaceBaseImage+f'{app.round}.png', roundNumberX, roundNumberY)
 
 def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
