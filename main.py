@@ -28,6 +28,9 @@ def onAppStart(app):
     app.addBonus = 250
     app.maxBonus = 5000
     app.bonuses = getBonusData(app)
+    # Bonus Animation
+    app.bonusAnimationStart = None
+    app.bonusAnimationDuration = 5
 
     app.mainColor = 'royalBlue'
     app.sideColors = [
@@ -57,7 +60,8 @@ def onAppStart(app):
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
-    app.roundLabelImage = app.interfaceBaseImage + 'round.png'
+    app.roundLabelImage = app.interfaceBaseImage + 'round.png'    
+    app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
@@ -94,6 +98,10 @@ def redrawAll(app):
     drawEnemies(app)
     drawPlayer(app)
     drawInterface(app)
+
+    # if the level is complete, display animation
+    if app.bonusAnimationStart is not None:
+        getBonusAnimation(app)
 
 def onStep(app):
     if not app.paused:
@@ -142,7 +150,6 @@ def onStep(app):
 
     elif app.gameState == app.gameStates[1]:
         # if the game level is complete, display a short animation.
-        getBonusAnimation(app)
         elapsedTime = time.time() - app.animationStartTime
         if elapsedTime - app.animationCount < 0:
             if elapsedTime - app.animationInterval > 0:
@@ -388,6 +395,7 @@ def checkBlockColors(app):
        # player has successfuly passed the level!
         app.animationStartTime = time.time()
         app.gameState = app.gameStates[1]
+        app.bonusAnimationStart = time.time()
         app.paused = True   
 
 def playLevelTransitionAnimation(app):
@@ -400,7 +408,11 @@ def playLevelTransitionAnimation(app):
                 block.mainColor = app.targetColor
 
 def getBonusAnimation(app):
-    
+    # Bonus First Text: YOU RECEIVED
+    elapsedTime = time.time() - app.bonusAnimationStart
+    if app.bonusAnimationDuration - elapsedTime > 0:
+        cx, cy = app.width // 2, app.height - 3 * app.labelMargin
+        drawImage(app.bonusTextImage, cx, cy, align='center')
 
 def nextGame(app):
     currentRound = app.round
