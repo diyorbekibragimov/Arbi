@@ -416,8 +416,8 @@ def getBonusAnimation(app):
         drawImage(app.bonusTextImage, bonusTextX, bonusTextY, align='center')
 
         bonusTextWidth = 264
-        bonusScoreX = bonusTextX + bonusTextWidth // 2 + 0.5 * app.labelMargin
-        bonusScoreY = bonusTextY - 3
+        bonusScoreX = app.width //2
+        bonusScoreY = bonusTextY + app.labelMargin
         drawImage(app.bonusScoreImage, bonusScoreX, bonusScoreY, align='left')
         
         bonusScoreWidth = 60 
