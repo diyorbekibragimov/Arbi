@@ -61,7 +61,9 @@ def onAppStart(app):
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
     app.roundLabelImage = app.interfaceBaseImage + 'round.png'    
-    app.bonusTextImage = app.interfaceBaseImage + 'bonusText1.png'
+    app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
+    app.bonusScoreImage = app.interfaceBaseImage + 'AddScore250.png'
+    app.bonusPointsImage = app.interfaceBaseImage + 'bonusPoints.png'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
@@ -252,13 +254,13 @@ def drawInterface(app):
     # Score
     scoreX = playerLabelX
     scoreY = playerLabelY + 2 * app.labelMargin
-    scoreImage = f'Score{app.player.score}.png'
+    scoreImage = app.interfaceBaseImage + f'Score{app.player.score}.png'
     drawImage(scoreImage, scoreX, scoreY)
 
     # Lives counter
     for life in range(app.playerLives):
-        lifeCx = playerLabelX + app.labelMargin * life
-        lifeCy = playerLabelY + 2 * app.labelMargin
+        lifeCx = scoreX + app.labelMargin * life
+        lifeCy = scoreY + 2 * app.labelMargin
         drawImage(app.playerLifeImage, lifeCx, lifeCy)
 
     # playerNumberX = playerLabelX + playerLabelWidth - app.labelMargin
@@ -410,8 +412,13 @@ def getBonusAnimation(app):
     # Bonus First Text: YOU RECEIVED
     elapsedTime = time.time() - app.bonusAnimationStart
     if app.bonusAnimationDuration - elapsedTime > 0:
-        cx, cy = app.width // 2, app.height - 3 * app.labelMargin
-        drawImage(app.bonusTextImage, cx, cy, align='center')
+        bonusTextX, bonusTextY = app.width // 2, app.height - 3 * app.labelMargin
+        drawImage(app.bonusTextImage, bonusTextX, bonusTextY, align='center')
+
+        bonusTextWidth = 400
+        bonusScoreX = bonusTextX + bonusTextWidth // 2 - 20
+        bonusScoreY = bonusTextY
+        drawImage(app.bonusScoreImage, bonusScoreX, bonusScoreY, align='center')
 
 def nextGame(app):
     # Increase the score of the player
@@ -429,8 +436,7 @@ def nextGame(app):
         print('complete win')
         app.gameState = app.gameStates[1]
     
-    app.player.score = app.bonuses[f'Level{app.level}'][app.round-1]
-    print(app.round, app.rounds)
+    app.player.score = app.bonuses[f'Level{app.level}'][app.round-2]
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()
