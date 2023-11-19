@@ -24,14 +24,12 @@ def onAppStart(app):
     app.round = 1
 
     # Initial Completion Bonus
-    app.completionBonus = 1000
-    app.addBonus = 250
+    app.completionBonus = 250
     app.maxBonus = 5000
-    app.bonuses = getBonusData(app)
+    # app.bonuses = getBonusData(app)
     # Bonus Animation
     app.bonusAnimationStart = None
     app.bonusAnimationDuration = 5
-    print(app.bonuses)
 
     app.mainColor = 'royalBlue'
     app.sideColors = [
@@ -75,7 +73,7 @@ def onAppStart(app):
     app.enemyImageBase = 'media/spritesheet/enemies/'
     app.enemies = list()
     app.enemySpawnInterval = 5
-    app.enemySpawned = None
+    app.enemySpawned = False
     app.maximumEnemiesOnBoard = 3
     app.fixedInterval = 5
     app.initialTime = time.time()
@@ -138,18 +136,18 @@ def onStep(app):
                 if elapsedTime - app.enemySpawnInterval > 0:
                     enemy = spawnEnemy(app)
                     app.enemySpawnInterval += app.fixedInterval
-                    app.enemySpawned = enemy
+                    app.enemies.append(enemy)
+                    app.enemySpawned = True
 
-        if app.enemySpawned is not None:
-            enemyCX, enemyCY = app.enemySpawned.getCenter()
-            _, currentBlockCY = app.enemySpawned.block.getCenter()
+        if app.enemySpawned:
+            enemy = app.enemies[-1]
+            enemyCX, enemyCY = enemy.getCenter()
+            _, currentBlockCY = enemy.block.getCenter()
             if enemyCY != currentBlockCY:
                 enemyCY += 5
-                app.enemySpawned.changeCenter((enemyCX, enemyCY))
-                index = findModelIndex(app.enemies, app.enemySpawned.id)
-                app.enemies[index] = app.enemySpawned
+                enemy.changeCenter((enemyCX, enemyCY))
             else:
-                app.enenySpawned = None
+                app.enenySpawned = False
 
     elif app.gameState == app.gameStates[1]:
         # if the game level is complete, display a short animation.
@@ -391,6 +389,7 @@ def detectCollision(app, enemy: Enemy):
         # setting the death time of the player
         # this is needed to count the time till the revival
         app.playerDeathTime = time.time()
+        app.enemySpawned = False
 
 def checkBlockColors(app):
     if app.rawBlocks == 0:
@@ -420,8 +419,10 @@ def nextGame(app):
     # Increase the score of the player
     currentRound = app.round
     currentLevel = app.level
+    prevScore = app.player.getScore()
     onAppStart(app)
     
+    print(currentLevel, currentRound)
     if currentRound < app.rounds:
         app.round = currentRound + 1
         app.level = currentLevel
@@ -430,10 +431,9 @@ def nextGame(app):
     else:
         # complete win
         print('complete win')
-        app.gameState = app.gameStates[1]
+        app.gameState = app.gameStates[3]
     
-    app.player.score += 
-    print(app.player.score)
+    app.player.updateScore(prevScore + app.completionBonus)
 
 def playGame():
     rows, blockSize, radius, margin = getDimenstions()

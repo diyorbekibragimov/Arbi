@@ -40,6 +40,9 @@ class Player(Actor):
     
     def getScore(self):
         return self.score
+    
+    def updateScore(self, value):
+        self.score += value
 
 class Enemy(Actor):
     id = 0
