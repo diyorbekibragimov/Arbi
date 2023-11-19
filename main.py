@@ -250,7 +250,10 @@ def drawInterface(app):
     drawImage(app.playerLabelImage, playerLabelX, playerLabelY)
 
     # Score
-
+    scoreX = playerLabelX
+    scoreY = playerLabelY + 2 * app.labelMargin
+    scoreImage = f'Score{app.player.score}.png'
+    drawImage(scoreImage, scoreX, scoreY)
 
     # Lives counter
     for life in range(app.playerLives):
@@ -263,10 +266,6 @@ def drawInterface(app):
     # # background for a number
     # drawRect(playerNumberX, playerNumberY, 20, 25, fill='red', align='center')
     # drawLabel(app.playerNumber, playerNumberX, playerNumberY, fill=playerNumberColor, bold=True, size=24)
-
-    # # Score
-    # scoreX = 2.5 * app.labelMargin
-    # scoreY = targetY + app.labelMargin
 
     # # Target 
     # targetLabelX = 
@@ -415,6 +414,7 @@ def getBonusAnimation(app):
         drawImage(app.bonusTextImage, cx, cy, align='center')
 
 def nextGame(app):
+    # Increase the score of the player
     currentRound = app.round
     currentLevel = app.level
     onAppStart(app)
@@ -429,6 +429,7 @@ def nextGame(app):
         print('complete win')
         app.gameState = app.gameStates[1]
     
+    app.player.score = app.bonuses[f'Level{app.level}'][app.round-1]
     print(app.round, app.rounds)
 
 def playGame():
