@@ -35,7 +35,11 @@ class Player(Actor):
 
         self.block = block
         self.direction = direction
+        self.score = 0
         self.image = image
+    
+    def getScore(self):
+        return self.score
 
 class Enemy(Actor):
     id = 0

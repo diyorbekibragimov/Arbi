@@ -3,7 +3,7 @@ from models import (Player, Enemy)
 from helper_functions import *
 
 from random import randint
-import time, math
+import time
 
 # TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
 # to learn how to work with sprites
@@ -20,8 +20,14 @@ def onAppStart(app):
     # Colors
     app.levels = 5
     app.level = 1
-    app.rounds = 3
+    app.rounds = 4
     app.round = 1
+
+    # Initial Completion Bonus
+    app.completionBonus = 1000
+    app.addBonus = 250
+    app.maxBonus = 5000
+    app.bonuses = getBonusData(app)
 
     app.mainColor = 'royalBlue'
     app.sideColors = [
@@ -136,6 +142,7 @@ def onStep(app):
 
     elif app.gameState == app.gameStates[1]:
         # if the game level is complete, display a short animation.
+        getBonusAnimation(app)
         elapsedTime = time.time() - app.animationStartTime
         if elapsedTime - app.animationCount < 0:
             if elapsedTime - app.animationInterval > 0:
@@ -236,7 +243,7 @@ def drawInterface(app):
     drawImage(app.playerLabelImage, playerLabelX, playerLabelY)
 
     # Score
-    
+
 
     # Lives counter
     for life in range(app.playerLives):
@@ -391,6 +398,9 @@ def playLevelTransitionAnimation(app):
                 block.mainColor = app.mainColor
             else:
                 block.mainColor = app.targetColor
+
+def getBonusAnimation(app):
+    
 
 def nextGame(app):
     currentRound = app.round

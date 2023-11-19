@@ -94,3 +94,14 @@ def countBlocks(pyramid: list):
         return 1
     else:
         return len(pyramid) + countBlocks(pyramid[1:])
+    
+def getBonusData(app):
+    bonuses = {}
+    for l in range(app.levels):
+        levelName = f'Level{l+1}'
+        for _ in range(4):
+            bonuses[levelName] = bonuses.get(levelName, [])
+            bonuses[levelName].append(app.completionBonus)
+            if app.completionBonus < app.maxBonus:
+                app.completionBonus += app.addBonus
+    return bonuses
