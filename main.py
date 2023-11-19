@@ -61,7 +61,7 @@ def onAppStart(app):
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
     app.roundLabelImage = app.interfaceBaseImage + 'round.png'    
-    app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
+    app.bonusTextImage = app.interfaceBaseImage + 'bonusText1.png'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
