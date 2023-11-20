@@ -61,6 +61,7 @@ def onAppStart(app):
     # if we do, we have to change the sizes of some pictures
     # such as logo
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
+    app.creditsImage = app.interfaceBaseImage + 'credits.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
@@ -332,6 +333,10 @@ def drawnHomeScreen(app):
     logoCx = app.width // 2 
     logoCy = app.height // 2 - 3 * app.labelMargin
     drawImage(app.logoImage, logoCx, logoCy, align='center')
+
+    creditsCx = logoCx
+    creditsCy = app.height - app.labelMargin
+    drawImage(app.creditsImage, creditsCx, creditsCy, align='center')
 
 def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
