@@ -61,7 +61,7 @@ def onAppStart(app):
     # if we do, we have to change the sizes of some pictures
     # such as logo
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
-    app.creditsImage = app.interfaceBaseImage + 'credits3-20.png'
+    app.creditsImage = app.interfaceBaseImage + 'credits-3-15.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
