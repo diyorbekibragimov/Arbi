@@ -63,6 +63,7 @@ def onAppStart(app):
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
     app.creditsImage = app.interfaceBaseImage + 'credits-3-15.png'
     app.playButtonImage = app.interfaceBaseImage + 'playButton.png'
+    app.playButtonTextImage = app.interfaceBaseImage + 'playFirst.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
@@ -347,6 +348,11 @@ def drawClickButton(app, offset):
     buttonCx = app.width // 2
     buttonCy = offset + 3 * app.labelMargin
     drawImage(app.playButtonImage, buttonCx, buttonCy, align='center')
+
+    # text
+    playButtonTextCx = buttonCx
+    playButtonTextCy = buttonCy
+    drawImage(app.playButtonTextImage, playButtonTextCx, playButtonTextCy, align='center')
 
 def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
