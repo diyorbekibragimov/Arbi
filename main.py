@@ -62,8 +62,10 @@ def onAppStart(app):
     # such as logo
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
     app.creditsImage = app.interfaceBaseImage + 'credits-3-15.png'
-    app.playButtonImage = app.interfaceBaseImage + 'playButton.png'
-    app.playButtonTextImage = app.interfaceBaseImage + 'playFirst.png'
+    app.playBtnHollowImage = app.interfaceBaseImage + 'playButtonHollow.png'
+    app.playBtnImage = app.interfaceBaseImage + 'playButton.png'
+    app.playBtnTextImageF = app.interfaceBaseImage + 'playFirst.png'
+    app.playBtnTextImageS = app.interfaceBaseImage + 'playSecond.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
@@ -71,6 +73,8 @@ def onAppStart(app):
     app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
     app.bonusScoreImage = app.interfaceBaseImage + 'AddScore250.png'
     app.bonusPointsImage = app.interfaceBaseImage + 'bonusPoints.png'
+
+    app.playButtonState = 'off'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['start', 'inprogress', 'levelComplete', 'playerDied', 'pass']
@@ -345,14 +349,18 @@ def drawnHomeScreen(app):
 def drawClickButton(app, offset):
     buttonWidth = 150
     buttonHeight = 50
-    buttonCx = app.width // 2
-    buttonCy = offset + 3 * app.labelMargin
-    drawImage(app.playButtonImage, buttonCx, buttonCy, align='center')
+    btnCx = app.width // 2
+    btnCy = offset + 3 * app.labelMargin
 
-    # text
-    playButtonTextCx = buttonCx
-    playButtonTextCy = buttonCy
-    drawImage(app.playButtonTextImage, playButtonTextCx, playButtonTextCy, align='center')
+    playBtnTextCx = btnCx
+    playBtnTextCy = btnCy
+
+    if app.playButtonState == 'off':
+        drawImage(app.playBtnHollowImage, btnCx, btnCy, align='center')
+        drawImage(app.playBtnTextImageF, playBtnTextCx, playBtnTextCy, align='center')
+    else:
+        drawImage(app.playBtnImage, btnCx, btnCy, align='center')
+        drawImage(app.playBtnTextImageS, playBtnTextCx, playBtnTextCy, align='center')
 
 def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
