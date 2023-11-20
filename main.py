@@ -338,6 +338,16 @@ def drawnHomeScreen(app):
     creditsCy = app.height - app.labelMargin
     drawImage(app.creditsImage, creditsCx, creditsCy, align='center')
 
+    drawClickButton(app, logoCy)
+
+def drawClickButton(app, offset):
+    buttonWidth = 150
+    buttonHeight = 50
+    buttonCx = app.width // 2 - buttonWidth // 2
+    buttonCy = offset + 2.5 * app.labelMargin
+    buttonColor = rgb(254, 170, 2)
+    drawRect(buttonCx, buttonCy, buttonWidth, buttonHeight, fill=buttonColor)
+
 def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
     randomBlockIndex = randint(0, 1)
