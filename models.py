@@ -27,7 +27,7 @@ class Block(Actor):
         Block.id += 1
 
 class Player(Actor):
-    def __init__(self, tag: str, center: tuple, block: Block, direction: str, image: str) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int) -> None:
         cx, cy = center
         cy -= 100
         center = (cx, cy)
@@ -37,12 +37,34 @@ class Player(Actor):
         self.direction = direction
         self.score = 0
         self.image = image
+        self.lives = lives
     
     def getScore(self):
         return self.score
     
     def updateScore(self, value):
         self.score += value
+
+    def getLives(self) -> int:
+        return self.lives
+
+    def takeLife(self) -> int:
+        if self.lives > 1:
+            self.lives -= 1
+            return self.lives
+        else:
+            self.lives -= 1
+            return -1
+        
+    def updateLives(self, val) -> bool:
+        if 0 < val <= 3:
+            self.lives = val
+            return True
+        else:
+            return False
+        
+    def getDirection(self):
+        return self.direction
 
 class Enemy(Actor):
     id = 0

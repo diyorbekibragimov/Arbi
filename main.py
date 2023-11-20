@@ -47,10 +47,10 @@ def onAppStart(app):
     # player starts on the highest col of the pyramid
     app.playerImageBase = 'media/spritesheet/player-'
     app.playerImage = app.playerImageBase + 'down-right-idle.png'
-    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0], 'right', app.playerImage)
+    app.playerLives = 3
+    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0], 'right', app.playerImage, app.playerLives)
     app.playerStates = ['spawn', 'idle', 'jump']
     app.playerState = app.playerStates[0]
-    app.playerLives = 3
     app.playerNumber = 1
 
     # Image sources
@@ -91,6 +91,8 @@ def onAppStart(app):
     app.playerDeathTime = None
     app.playerRevivalTime = 5
 
+    app.gravity = 0.5
+
     # Level
     app.labelMargin = 30
 
@@ -125,6 +127,7 @@ def onStep(app):
     
         checkBlockColors(app)
         enemyControls(app)
+        
         # if the state of player is jumping
         if app.playerState == app.playerStates[2]:
             # playerJump(app)
@@ -166,7 +169,7 @@ def onStep(app):
         # the player has died because of falling or collision with the enemy
         elapsedTime = time.time() - app.playerDeathTime
         if elapsedTime - app.playerRevivalTime > 0:
-            # the playerGetsRevived and the game continues
+            # the player gets revived and the game continues
             # the progress and the position of the player does not change
             app.paused = False
             app.deathTime = None
@@ -192,15 +195,15 @@ def onKeyPress(app, key):
         if key in app.allowedMovementKeys:
             # the player is jumping
             app.playerState = app.playerStates[2]
-            if key == 'down':
-                app.player.direction = 'down-left'
-            elif key == 'up':
-                app.player.direction = 'up-right'
-            elif key == 'left':
-                app.player.direction = 'up-left'
-            elif key == 'right':
-                app.player.direction = 'down-right'
-            #app.player.image = app.playerImageBase + f'{app.player.direction}-{app.playerState}.png'
+            # if key == 'down':
+            #     app.player.direction = 'down-left'
+            # elif key == 'up':
+            #     app.player.direction = 'up-right'
+            # elif key == 'left':
+            #     app.player.direction = 'up-left'
+            # elif key == 'right':
+            #     app.player.direction = 'down-right'
+            # #app.player.image = app.playerImageBase + f'{app.player.direction}-{app.playerState}.png'
             app.playerState = app.playerStates[2]
             playerJump(app, key)
 
@@ -240,8 +243,6 @@ def drawEnemies(app):
 
 def drawInterface(app):
     # Player Label
-    playerLabelColor = 'purple'
-    playerNumberColor = 'yellow'
     playerLabelText = 'PLAYER'
 
     playerLabelX = app.labelMargin
@@ -257,7 +258,8 @@ def drawInterface(app):
     drawImage(scoreImage, scoreX, scoreY)
 
     # Lives counter
-    for life in range(app.playerLives):
+    remainingLives = app.player.getLives()
+    for life in range(remainingLives):
         lifeCx = scoreX + app.labelMargin * life
         lifeCy = scoreY + 2 * app.labelMargin
         drawImage(app.playerLifeImage, lifeCx, lifeCy)
@@ -342,14 +344,29 @@ def enemyControls(app):
     for enemy in enemies:
         # collision
         animateEnemy(app, enemy)
-        detectCollision(app, enemy)
-        # movement
-        elapsedTime = time.time() - enemy.moveTime
-        if elapsedTime - app.enemyControlInterval > 0:
-            if enemy.type == 'red':
-                redEnemyControls(app, enemy)
-            else:
-                greenEnemyControls(app, enemy)
+        isCollided = detectCollision(app, enemy)
+        if isCollided:
+            res = app.player.takeLife()
+            if res == -1:
+                # no lives left
+                print('died')
+            # the game gets paused
+            app.paused = True
+            # the state of the game changes to 'playerDied'
+            app.gameState = app.gameStates[2]
+            # setting the death time of the player
+            # this is needed to count the time till the revival
+            app.playerDeathTime = time.time()
+            app.enemySpawned = False
+            break
+        else:
+            # movement
+            elapsedTime = time.time() - enemy.moveTime
+            if elapsedTime - app.enemyControlInterval > 0:
+                if enemy.type == 'red':
+                    redEnemyControls(app, enemy)
+                else:
+                    greenEnemyControls(app, enemy)
 
 def animateEnemy(app, enemy):
     elapsedTime = time.time() - enemy.spawnTime
@@ -378,18 +395,8 @@ def detectCollision(app, enemy: Enemy):
     playerCx, playerCy = app.player.getCenter()
     enemyCx, enemyCy = enemy.getCenter()
     if playerCx == enemyCx and playerCy == enemyCy:
-        # the player has collided with one of the enemies
-        # thus, one life of the player gets removed
-        if app.playerLives > 0:
-            app.playerLives -= 1
-        # the game gets paused
-        app.paused = True
-        # the state of the game changes to 'playerDied'
-        app.gameState = app.gameStates[2]
-        # setting the death time of the player
-        # this is needed to count the time till the revival
-        app.playerDeathTime = time.time()
-        app.enemySpawned = False
+        return True
+    return False
 
 def checkBlockColors(app):
     if app.rawBlocks == 0:
@@ -420,6 +427,7 @@ def nextGame(app):
     currentRound = app.round
     currentLevel = app.level
     prevScore = app.player.getScore()
+    remainingLives = app.player.getLives()
     onAppStart(app)
     
     print(currentLevel, currentRound)
@@ -433,6 +441,7 @@ def nextGame(app):
         print('complete win')
         app.gameState = app.gameStates[3]
     
+    app.player.updateLives(remainingLives)
     app.player.updateScore(prevScore + app.completionBonus)
 
 def playGame():
