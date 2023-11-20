@@ -56,6 +56,7 @@ def onAppStart(app):
     # Image sources
     app.labelImageWidth = 93
     app.interfaceBaseImage = 'media/interface/' 
+    app.logoImage = app.interfaceBaseImage + 'logo.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
@@ -65,8 +66,8 @@ def onAppStart(app):
     app.bonusPointsImage = app.interfaceBaseImage + 'bonusPoints.png'
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['inprogress', 'levelComplete', 'playerDied', 'pass']
-    app.gameState = 'inprogress'
+    app.gameStates = ['start', 'inprogress', 'levelComplete', 'playerDied', 'pass']
+    app.gameState = 'start'
     app.paused = False
 
     app.enemyTypes = ['red']
@@ -97,10 +98,13 @@ def onAppStart(app):
     app.labelMargin = 30
 
 def redrawAll(app):
-    drawPyramid(app)
-    drawEnemies(app)
-    drawPlayer(app)
-    drawInterface(app)
+    if app.gameState == 'start':
+        drawnHomeScreen(app)
+    else:
+        drawPyramid(app)
+        drawEnemies(app)
+        drawPlayer(app)
+        drawInterface(app)
 
     # if the level is complete, display animation
     if app.bonusAnimationStart is not None:
@@ -133,7 +137,7 @@ def onStep(app):
             # playerJump(app)
             pass
 
-        if app.gameState == app.gameStates[0]:
+        if app.gameState == app.gameStates[1]:
             elapsedTime = time.time() - app.initialTime
             if len(app.enemies) < app.maximumEnemiesOnBoard:
                 if elapsedTime - app.enemySpawnInterval > 0:
@@ -174,7 +178,7 @@ def onStep(app):
             app.paused = False
             app.deathTime = None
             # the game state changes to 'inprogress'
-            app.gameState = app.gameStates[0]
+            app.gameState = app.gameStates[1]
             # the enemies gets removed, giving a player a headstart
             app.enemies.clear()
             # the basically sort of 'restarts' with the initial time changing
@@ -319,6 +323,11 @@ def playerJump(app, key):
     else:
         # the player will fall out of the pyramid
         print("Falling")
+
+def drawnHomeScreen(app):
+    logoCx = app.width // 2
+    logoCy = app.height // 2
+    drawImage(app.logoImage, logoCx, logoCy, align='center')
 
 def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
