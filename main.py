@@ -62,6 +62,7 @@ def onAppStart(app):
     # such as logo
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
     app.creditsImage = app.interfaceBaseImage + 'credits-3-15.png'
+    app.playButtonImage = app.interfaceBaseImage + 'playButton.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
@@ -343,10 +344,9 @@ def drawnHomeScreen(app):
 def drawClickButton(app, offset):
     buttonWidth = 150
     buttonHeight = 50
-    buttonCx = app.width // 2 - buttonWidth // 2
-    buttonCy = offset + 2.5 * app.labelMargin
-    buttonColor = rgb(254, 170, 2)
-    drawRect(buttonCx, buttonCy, buttonWidth, buttonHeight, fill=buttonColor)
+    buttonCx = app.width // 2
+    buttonCy = offset + 3 * app.labelMargin
+    drawImage(app.playButtonImage, buttonCx, buttonCy, align='center')
 
 def spawnEnemy(app):
     enemyType = randomEnemySelection(app.enemyTypes)
