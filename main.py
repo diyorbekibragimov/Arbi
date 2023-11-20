@@ -56,7 +56,11 @@ def onAppStart(app):
     # Image sources
     app.labelImageWidth = 93
     app.interfaceBaseImage = 'media/interface/' 
-    app.logoImage = app.interfaceBaseImage + 'logo.png'
+    # small image
+    # NOTE: We can make the game resizable
+    # if we do, we have to change the sizes of some pictures
+    # such as logo
+    app.logoImage = app.interfaceBaseImage + 'logo50.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
@@ -325,8 +329,8 @@ def playerJump(app, key):
         print("Falling")
 
 def drawnHomeScreen(app):
-    logoCx = app.width // 2
-    logoCy = app.height // 2
+    logoCx = app.width // 2 
+    logoCy = app.height // 2 - 3 * app.labelMargin
     drawImage(app.logoImage, logoCx, logoCy, align='center')
 
 def spawnEnemy(app):
