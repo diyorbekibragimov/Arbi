@@ -1,4 +1,4 @@
-import time
+import time, math
 
 class Actor():
     id = 0
@@ -27,16 +27,97 @@ class Block(Actor):
         Block.id += 1
 
 class MovingActor(Actor):
-    def __init__(self, tag: str, center: tuple, velocity: tuple):
+    gravity = 0.9
+    def __init__(self, tag: str, center: tuple, block: Block, nextBlock: Block, direction: str, velocity: tuple, angle: int):
         super().__init__(tag, center)
+        self.block = block
+        self.nextBlock = nextBlock
+        self.direction = direction
+        self.angle = angle
         self.velocity = velocity
+        self.landed = False
+
+    def handleJump(self):
+        curBlockCx, _ = self.block.getCenter()
+        nxtBlockCx, nxtBlockCy = self.nextBlock.getCenter()
+        distanceX = nxtBlockCx - curBlockCx
+        deltaX = distanceX // 10
+        actorCx, actorCy = super().getCenter()
+
+        # based on the direction of the player
+        # its x and y coordinates should either
+        # increase or decrease.
+        """
+            bottom right block: 
+                x increases
+                y increases
+            
+            bottom left block:
+                x decreases
+                y increases
+
+            top right block:
+                x increases
+                y decreases
+            
+            top left block:
+                x decreases
+                y decreaes
+        """
+        if self.direction == 'down-right':
+            if actorCx < nxtBlockCx:
+                actorCx += deltaX * math.cos(self.angle)
+            if actorCy < nxtBlockCy:
+                actorCy -= self.velocity * MovingActor.gravity
+
+            if actorCx >= nxtBlockCx and actorCy >= nxtBlockCy:
+                self.landed = True
+
+        elif self.direction == 'down-left':
+            if actorCx > nxtBlockCx:
+                actorCx += deltaX * math.cos(self.angle)
+            if actorCy < nxtBlockCy:
+                actorCy -= self.velocity * MovingActor.gravity
+
+            if actorCx <= nxtBlockCx and actorCy >= nxtBlockCy:
+                self.landed = True
+        
+        elif self.direction == 'top-left':
+            if actorCx > nxtBlockCx:
+                actorCx += deltaX * math.cos(self.angle)
+            if actorCy > nxtBlockCy:
+                actorCy += self.velocity * MovingActor.gravity
+
+            if actorCx <= nxtBlockCx and actorCy <= nxtBlockCy:
+                self.landed = True
+        
+        elif self.direction == 'top-right':
+            if actorCx < nxtBlockCx:
+                actorCx += deltaX * math.cos(self.angle)
+            if actorCy > nxtBlockCy:
+                actorCy += self.velocity * MovingActor.gravity
+
+            if actorCx >= nxtBlockCx and actorCy <= nxtBlockCy:
+                self.landed = True
+
+        if not self.landed:
+            super().changeCenter((actorCx, actorCy))
+            self.velocity -= MovingActor.gravity
+        else:
+            super().changeCenter((nxtBlockCx, nxtBlockCy))
+            self.block = self.nextBlock
+
+    def jump(self, block, velocity, angle):
+        self.nextBlock = block
+        self.velocity = velocity
+        self.angle = angle
 
 class Player(MovingActor):
     def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int, velocity: int) -> None:
         cx, cy = center
         cy -= 100
         center = (cx, cy)
-        super().__init__(tag, center, velocity=velocity)
+        super().__init__(tag, center, block, nextBlock=None, direction=direction, velocity=velocity, angle=0)
 
         self.block = block
         self.nextBlock = None
@@ -46,6 +127,7 @@ class Player(MovingActor):
         self.direction = direction
         self.velocity = velocity
         self.angle = 0
+        self.landed = False
     
     def getScore(self):
         return self.score
@@ -73,11 +155,6 @@ class Player(MovingActor):
         
     def getDirection(self):
         return self.direction
-    
-    def jump(self, block, velocity, angle):
-        self.nextBlock = block
-        self.velocity = velocity
-        self.angle = angle
 
 class Enemy(Actor):
     id = 0

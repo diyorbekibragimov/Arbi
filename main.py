@@ -68,6 +68,7 @@ def onAppStart(app):
     # such as logo
     app.starImage = app.interfaceBaseImage + 'star.png'
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
+    app.gameOverImage = app.interfaceBaseImage + 'gameOver50.png'
     app.creditsImage = app.interfaceBaseImage + 'credits-3-15.png'
     app.playBtnHollowImage = app.interfaceBaseImage + 'playButtonHollow.png'
     app.playBtnImage = app.interfaceBaseImage + 'playButton.png'
@@ -90,7 +91,7 @@ def onAppStart(app):
     app.btnHeight = 50
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['start', 'inprogress', 'levelComplete', 'playerDied', 'pass']
+    app.gameStates = ['start', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail']
     app.gameState = 'start'
     app.paused = False
 
@@ -101,6 +102,7 @@ def onAppStart(app):
     app.enemiesSpawned = False
     app.readyEnemies = 0
     app.maximumEnemiesOnBoard = 3
+    app.fixedMaxEnemiesOnBoard = 10
     app.numberOfEnemiesSpawn = 1
     app.maxEnemiesSpawn = 2
     app.fixedInterval = 5
@@ -117,15 +119,20 @@ def onAppStart(app):
     app.animationFixedInterval = app.animationInterval
 
     app.playerDeathTime = None
-    app.playerRevivalTime = 5
+    app.playerRevivalTime = 3
 
     app.gravity = 0.9
 
     # Level
 
 def redrawAll(app):
-    if app.gameState == 'start':
+    if app.gameState == app.gameStates[0]:
+        # the home page
         drawnHomeScreen(app)
+    elif app.gameState == app.gameStates[5] \
+        or app.gameState == app.gameStates[4]:
+        # the player has either lost or won the game
+        drawFinal(app)
     else:
         drawPyramid(app)
         drawEnemies(app)
@@ -138,10 +145,6 @@ def redrawAll(app):
 
 def onStep(app):
     if not app.paused:
-        if app.gameState == app.gameStates[0]:
-            if app.btnIsPressed:
-                app.gameState = app.gameStates[1]
-
         if app.playerState == app.playerStates[0]:
             # if the player has just spawned, it needs
             # to fall into the topmost block on the pyramid
@@ -158,24 +161,41 @@ def onStep(app):
                 app.playerState = app.playerStates[1] # the player is ready or idle.
                 app.board[0][0].mainColor = app.targetColor
                 app.rawBlocks -= 1
-    
-        checkBlockColors(app)
-        enemyControls(app)
         
-        # if the state of player is jumping
-        if app.playerState == app.playerStates[2]:
-            handleJump(app, app.player)
+        elif app.playerState == app.playerStates[2]:
+            if not app.player.landed:
+                # if the state of player is jumping
+                app.player.handleJump()
+            else:
+                app.player.landed = False
+                # the player has fully jumped to the block
+                app.playerState = app.playerStates[1]
 
-        if app.gameState == app.gameStates[1]:
+                # change the color of the new block
+                # the player has jumped to
+                if app.player.block.mainColor != app.targetColor:
+                    app.player.block.mainColor = app.targetColor
+                    app.rawBlocks -= 1
+
+                # change the picture of the player to the original state
+                app.player.image = app.playerImageBase + f'{app.player.direction}-idle.png'
+        
+        if app.gameState == app.gameStates[0]:
+            if app.btnIsPressed:
+                app.gameState = app.gameStates[1]
+        
+        elif app.gameState == app.gameStates[1]:
+            # if the game is in progress
+            checkBlockColors(app)
+            enemyControls(app)
             elapsedTime = time.time() - app.initialTime
             if len(app.enemies) < app.maximumEnemiesOnBoard:
                 if elapsedTime - app.enemySpawnInterval > 0:
                     for _ in range(app.numberOfEnemiesSpawn):
-                        enemy = spawnEnemy(app)
-                        app.enemySpawnInterval += app.fixedInterval
-                        app.enemies.append(enemy)
-                        app.enemiesSpawned = True
-
+                        spawnEnemy(app)
+                    app.enemiesSpawned = True
+                    app.enemySpawnInterval += app.fixedInterval
+   
         if app.enemiesSpawned and app.readyEnemies != app.numberOfEnemiesSpawn:
             enemies = app.enemies[-app.numberOfEnemiesSpawn:]
             for enemy in enemies:
@@ -190,37 +210,34 @@ def onStep(app):
             app.enemiesSpawned = False
             app.readyEnemies = 0
 
-    elif app.gameState == app.gameStates[1]:
-        # if the game level is complete, display a short animation.
-        elapsedTime = time.time() - app.animationStartTime
-        if elapsedTime - app.animationCount < 0:
-            if elapsedTime - app.animationInterval > 0:
-                app.animationInterval += app.animationFixedInterval
-                playLevelTransitionAnimation(app)
-        else:
-            # the animation is over
-            nextGame(app)
+    elif app.gameState == app.gameStates[2]:
+            # if the game level is complete, display a short animation.
+            elapsedTime = time.time() - app.animationStartTime
+            if elapsedTime - app.animationCount < 0:
+                if elapsedTime - app.animationInterval > 0:
+                    app.animationInterval += app.animationFixedInterval
+                    playLevelTransitionAnimation(app)
+            else:
+                # the animation is over
+                nextGame(app)
 
-    elif app.gameState == app.gameStates[2] \
-            and app.playerDeathTime is not None \
-            and app.playerLives > 0:
-        # the player has died because of falling or collision with the enemy
-        elapsedTime = time.time() - app.playerDeathTime
-        if elapsedTime - app.playerRevivalTime > 0:
-            # the player gets revived and the game continues
-            # the progress and the position of the player does not change
-            app.paused = False
-            app.deathTime = None
-            # the game state changes to 'inprogress'
-            app.gameState = app.gameStates[1]
-            # the enemies gets removed, giving a player a headstart
-            app.enemies.clear()
-            # the basically sort of 'restarts' with the initial time changing
-            # to the current time.
-            app.enemySpawnInterval += app.playerRevivalTime
-    
-    if app.playerLives == 0:
-        onAppStart(app)
+    elif app.gameState == app.gameStates[3] \
+                and app.playerDeathTime is not None \
+                and app.playerLives > 0:
+            # the player has died because of falling or collision with the enemy
+            elapsedTime = time.time() - app.playerDeathTime
+            if elapsedTime - app.playerRevivalTime > 0:
+                # the player gets revived and the game continues
+                # the progress and the position of the player does not change
+                app.paused = False
+                app.deathTime = None
+                # the game state changes to 'inprogress'
+                app.gameState = app.gameStates[1]
+                # the enemies gets removed, giving a player a headstart
+                app.enemies.clear()
+                # the basically sort of 'restarts' with the initial time changing
+                # to the current time.
+                app.enemySpawnInterval += app.playerRevivalTime
 
 def onKeyPress(app, key):
     if key == 'r':
@@ -230,20 +247,22 @@ def onKeyPress(app, key):
         if app.gameState == app.gameStates[0]:
             app.playButtonState = 'on'
             app.btnIsPressed = True
-        else:
+        elif app.gameState == app.gameStates[1]:
+            # the game can be stopped only if it is in progress
             app.paused = not app.paused
 
     if not app.paused \
         and app.playerState != app.playerStates[0] \
-        and app.gameState != app.gameStates[0]:
+        and app.gameState != app.gameStates[0] \
+        and app.playerState != app.playerStates[2]:
         if key in app.allowedMovementKeys:
             # the player is jumping
             if key == 'down':
                 app.player.direction = 'down-left'
             elif key == 'up':
-                app.player.direction = 'up-right'
+                app.player.direction = 'top-right'
             elif key == 'left':
-                app.player.direction = 'up-left'
+                app.player.direction = 'top-left'
             elif key == 'right':
                 app.player.direction = 'down-right'
             playerJump(app, key)
@@ -288,13 +307,11 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
     drawPolygon(*rightSideCoordinates, fill=sideColors[1], border='black', borderWidth=1)
 
 # Player
-
 def drawPlayer(app):
     playerX, playerY = app.player.getCenter()
     drawImage(app.player.image, playerX, playerY, align='bottom')
 
 # Enemies
-
 def drawEnemies(app):
     for enemy in app.enemies:
         enemyX, enemyY = enemy.getCenter()
@@ -302,7 +319,6 @@ def drawEnemies(app):
         drawImage(imageURL, enemyX, enemyY, align='bottom')
 
 # Interface
-
 def drawInterface(app):
     # Player Label
     playerLabelText = 'PLAYER'
@@ -373,10 +389,12 @@ def playerJump(app, key):
         # I find the indexes simply by looking their indexes in the app.allowedMovementKeys
         # I think there is a better and, perhaps, clearer way of finding the the index, though.
         nextBlock = app.board[nextRow][nextCol]
-        _, curBlockCy = app.player.block.getCenter()
-        _, nxtBlockCy = nextBlock.getCenter()
+        curBlockCx, curBlockCy = app.player.block.getCenter()
+        nxtBlockCx, nxtBlockCy = nextBlock.getCenter()
         angle = 45
         initialVelocity = (nxtBlockCy - curBlockCy) // 10
+        # if app.player.direction.startswith('top'):
+        #     initialVelocity = (nxtBlockCx - curBlockCx) // 5
         app.player.jump(nextBlock, initialVelocity, angle) # sets the next jumping block of the player
         app.playerState = app.playerStates[2]
         # change the picture of the player
@@ -399,6 +417,11 @@ def drawnHomeScreen(app):
 
     drawClickButton(app)
 
+# Final
+def drawFinal(app):
+    cx, cy = app.width // 2, app.height // 2
+    drawImage(app.gameOverImage, cx, cy, align='center')
+
 def drawStars(app):
     for star in app.stars:
         cx, cy = star.getCenter()
@@ -419,7 +442,6 @@ def spawnEnemy(app):
     newEnemy = Enemy(tag=enemyType, center=randomBlock.getCenter(), 
                      block=randomBlock, type=enemyType, move=0, imageId=1)
     app.enemies.append(newEnemy)
-    return newEnemy
 
 def enemyControls(app):
     enemies = app.enemies
@@ -441,11 +463,12 @@ def enemyControls(app):
             res = app.player.takeLife()
             if res == -1:
                 # no lives left
-                print('died')
+                app.gameState = app.gameStates[5]
+                break
             # the game gets paused
             app.paused = True
             # the state of the game changes to 'playerDied'
-            app.gameState = app.gameStates[2]
+            app.gameState = app.gameStates[3]
             # setting the death time of the player
             # this is needed to count the time till the revival
             app.playerDeathTime = time.time()
@@ -474,7 +497,7 @@ def redEnemyControls(app, enemy: Enemy):
         nextBlock = app.board[nextRow][nextCol]
         enemy.block = nextBlock
         enemy.changeCenter(nextBlock.getCenter())
-        enemy.move = 1 if enemy.move == 0 else 0
+        enemy.move = randint(0, 1)
         enemy.moveTime += app.fixedEnemyControlInterval
         app.enemies[index] = enemy
     else:
@@ -494,7 +517,7 @@ def checkBlockColors(app):
     if app.rawBlocks == 0:
        # player has successfuly passed the level!
         app.animationStartTime = time.time()
-        app.gameState = app.gameStates[1]
+        app.gameState = app.gameStates[2]
         app.bonusAnimationStart = time.time()
         app.paused = True   
 
@@ -514,11 +537,12 @@ def getBonusAnimation(app):
         bonusTextX, bonusTextY = app.width // 2, app.height - 3 * app.labelMargin
         drawImage(app.bonusTextImage, bonusTextX, bonusTextY, align='center')
 
-def handleJump(app, actor, direction):
+def handleJump(app, actor):
     curBlockCx, _ = actor.block.getCenter()
     nxtBlockCx, nxtBlockCy = actor.nextBlock.getCenter()
-    distanceX = abs(nxtBlockCx - curBlockCx)
+    distanceX = nxtBlockCx - curBlockCx
     deltaX = distanceX // 10
+    actorCx, actorCy = actor.getCenter()
 
     # based on the direction of the player
     # its x and y coordinates should either
@@ -540,25 +564,44 @@ def handleJump(app, actor, direction):
             x decreases
             y decreaes
     """
-    direction = actor.direction
-    signX = +1
-    signY = +1
-    if direction == 'down-left':
-        # x decreases
-        signX = -1
-    elif direction == 'top-right':
-        signY = -1
-    elif direction == 'top-left':
-        signX = -1
-        signY -= 1
+    if actor.direction == 'down-right':
+        if actorCx < nxtBlockCx:
+            actorCx += deltaX * math.cos(actor.angle)
+        if actorCy < nxtBlockCy:
+            actorCy -= actor.velocity * app.gravity
+
+        if actorCx >= nxtBlockCx and actorCy >= nxtBlockCy:
+            actor.landed = True
+
+    elif actor.direction == 'down-left':
+        if actorCx > nxtBlockCx:
+            actorCx += deltaX * math.cos(actor.angle)
+        if actorCy < nxtBlockCy:
+            actorCy -= actor.velocity * app.gravity
+
+        if actorCx <= nxtBlockCx and actorCy >= nxtBlockCy:
+            actor.landed = True
     
-    actorCx, actorCy = actor.getCenter()
-    if actorCx < nxtBlockCx:
-        actorCx += deltaX * math.cos(actor.angle) * signX
-    if actorCy < nxtBlockCy:
-        actorCy -= actor.velocity * app.gravity * signY
+    elif actor.direction == 'top-left':
+        if actorCx > nxtBlockCx:
+            actorCx += deltaX * math.cos(actor.angle)
+        if actorCy > nxtBlockCy:
+            actorCy += actor.velocity * app.gravity
+
+        if actorCx <= nxtBlockCx and actorCy <= nxtBlockCy:
+            actor.landed = True
     
-    if actorCx >= nxtBlockCx and actorCy >= nxtBlockCy:
+    elif actor.direction == 'top-right':
+        if actorCx < nxtBlockCx:
+            actorCx += deltaX * math.cos(actor.angle)
+        if actorCy > nxtBlockCy:
+            actorCy += actor.velocity * app.gravity
+
+        if actorCx >= nxtBlockCx and actorCy <= nxtBlockCy:
+            actor.landed = True
+
+    if actor.landed:
+        actor.landed = False
         # the player has fully jumped to the block
         actor.changeCenter((nxtBlockCx, nxtBlockCy))
         actor.block = actor.nextBlock
@@ -584,14 +627,18 @@ def nextGame(app):
     currentRows = app.rows
     prevScore = app.player.getScore()
     remainingLives = app.player.getLives()
+    curMaxEnemiesOnBoard = app.maximumEnemiesOnBoard
     onAppStart(app)
 
     app.gameState = app.gameStates[1]
+
     if currentRound < app.rounds:
         app.round = currentRound + 1
         app.level = currentLevel
-        if app.numberOfEnemiesSpawn < app.maxEnemiesSpawn:
-            app.numberOfEnemiesSpawn += 1
+        app.numberOfEnemiesSpawn += 1
+        if curMaxEnemiesOnBoard < app.fixedMaxEnemiesOnBoard:
+            app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard + 1
+
     elif currentLevel < app.levels:
         app.rows = currentRows + 1
         app.board = createBoard(app, app.rows)
