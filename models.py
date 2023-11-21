@@ -26,18 +26,26 @@ class Block(Actor):
         self.sideColors = sideColors
         Block.id += 1
 
-class Player(Actor):
-    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int) -> None:
+class MovingActor(Actor):
+    def __init__(self, tag: str, center: tuple, velocity: tuple):
+        super().__init__(tag, center)
+        self.velocity = velocity
+
+class Player(MovingActor):
+    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int, velocity: int) -> None:
         cx, cy = center
         cy -= 100
         center = (cx, cy)
-        super().__init__(tag, center)
+        super().__init__(tag, center, velocity=velocity)
 
         self.block = block
-        self.direction = direction
+        self.nextBlock = None
         self.score = 0
         self.image = image
         self.lives = lives
+        self.direction = direction
+        self.velocity = velocity
+        self.angle = 0
     
     def getScore(self):
         return self.score
@@ -65,6 +73,11 @@ class Player(Actor):
         
     def getDirection(self):
         return self.direction
+    
+    def jump(self, block, velocity, angle):
+        self.nextBlock = block
+        self.velocity = velocity
+        self.angle = angle
 
 class Enemy(Actor):
     id = 0
@@ -91,3 +104,16 @@ class Enemy(Actor):
     
     def increaseImageChangeInterval(self, interval: int):
         self.imageChangeInterval += interval
+
+class Star(Actor):
+    id = 0
+    count = 0
+    def __init__(self, tag: str, center: tuple, image: str):
+        super().__init__(tag, center)
+
+        self.image = image
+        self.id = Star.id
+        Star.count += 1
+    
+    def getImage(self):
+        return self.image

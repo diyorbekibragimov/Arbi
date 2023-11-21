@@ -1,6 +1,6 @@
-import copy
+import math
 from random import randint
-from models import Block
+from models import Block, Star
 
 def calculateDistance(size):
     return size // (2**0.5)
@@ -12,9 +12,9 @@ def getDimenstions():
     margin = 25
     return (rows, blockSize, radius, margin)
 
-def createBoard(app):
+def createBoard(app, rows):
     board = []
-    for row in range(1, app.rows+1):
+    for row in range(1, rows+1):
         numOfBlocks = row
         currentNumOfBlocks = numOfBlocks
         blocks = []
@@ -105,3 +105,25 @@ def countBlocks(pyramid: list):
 #             if app.completionBonus < app.maxBonus:
 #                 app.completionBonus += app.addBonus
 #     return bonuses
+
+def generateStars(app, maxCap: int, image: str):
+    stars = []
+    for _ in range(maxCap):
+        starCx = randint(app.labelMargin, app.width - 2 * app.labelMargin)
+        starCy = randint(app.labelMargin, app.height - 2 * app.labelMargin)
+        star = Star(f'star', (starCx, starCy), image)
+        stars.append(star)
+    return stars
+
+def calculateDistance(x1, x2, y1, y2):
+    return math.sqrt((x1-x2)**2 + (y1-y2)**2)
+
+# def findAngle(actor, pos):
+#     actorCx, actorCy = actor.getCenter()
+#     nextBlockCx, nextBlockCy = pos
+#     try:
+#         angle = math.atan((actorCy-nextBlockCy) / (actorCx - nextBlockCx))
+#     except:
+#         angle = math.pi / 2
+    
+#     if 
