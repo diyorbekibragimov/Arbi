@@ -28,13 +28,13 @@ class Block(Actor):
 
 class MovingActor(Actor):
     gravity = 0.9
-    def __init__(self, tag: str, center: tuple, block: Block, nextBlock: Block, direction: str, velocity: tuple, angle: int):
+    def __init__(self, tag: str, center: tuple, block: Block, direction: str):
         super().__init__(tag, center)
         self.block = block
-        self.nextBlock = nextBlock
+        self.nextBlock = None
         self.direction = direction
-        self.angle = angle
-        self.velocity = velocity
+        self.angle = 0
+        self.velocity = 0
         self.landed = False
 
     def handleJump(self):
@@ -107,27 +107,26 @@ class MovingActor(Actor):
             super().changeCenter((nxtBlockCx, nxtBlockCy))
             self.block = self.nextBlock
 
-    def jump(self, block, velocity, angle):
-        self.nextBlock = block
-        self.velocity = velocity
+    def jump(self, nxtBlock, angle, direction):
+        _, curBlockCy = self.block.getCenter()
+        _, nxtBlockCy = nxtBlock.getCenter()
+        self.nextBlock = nxtBlock
+        self.velocity = (nxtBlockCy-curBlockCy) // 10
         self.angle = angle
+        self.direction = direction
 
 class Player(MovingActor):
-    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int, velocity: int) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int) -> None:
         cx, cy = center
         cy -= 100
         center = (cx, cy)
-        super().__init__(tag, center, block, nextBlock=None, direction=direction, velocity=velocity, angle=0)
+        super().__init__(tag, center, block, direction=direction)
 
         self.block = block
         self.nextBlock = None
         self.score = 0
         self.image = image
         self.lives = lives
-        self.direction = direction
-        self.velocity = velocity
-        self.angle = 0
-        self.landed = False
     
     def getScore(self):
         return self.score
@@ -156,25 +155,27 @@ class Player(MovingActor):
     def getDirection(self):
         return self.direction
 
-class Enemy(Actor):
+class Enemy(MovingActor):
     id = 0
     count = 0
-    def __init__(self, tag: str, center: tuple, block: Block, type: str, move: int, imageId: int) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, type: str, imageId: int, state: str) -> None:
         tag = f'{tag}{Enemy.id}'
+
         # add a falling effect when the enemy spawns
         cx, cy = center
         cy -= 100
         center = (cx, cy)
-        super().__init__(tag, center)
+
+        super().__init__(tag, center, block, direction='down-left')
 
         self.id = Enemy.id
-        self.block = block
         self.type = type
-        self.move = move
+        self.move = 0
         self.spawnTime = time.time()
         self.moveTime = time.time()
         self.imageChangeInterval = 0.3
         self.imageId = imageId
+        self.state = state
 
         Enemy.id += 1
         Enemy.count += 1

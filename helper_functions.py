@@ -6,7 +6,7 @@ def calculateDistance(size):
     return size // (2**0.5)
 
 def getDimenstions():
-    rows = 5
+    rows = 7
     blockSize = 50
     radius = (2**0.5) * blockSize // 2
     margin = 25
@@ -117,13 +117,3 @@ def generateStars(app, maxCap: int, image: str):
 
 def calculateDistance(x1, x2, y1, y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
-
-# def findAngle(actor, pos):
-#     actorCx, actorCy = actor.getCenter()
-#     nextBlockCx, nextBlockCy = pos
-#     try:
-#         angle = math.atan((actorCy-nextBlockCy) / (actorCx - nextBlockCx))
-#     except:
-#         angle = math.pi / 2
-    
-#     if 
