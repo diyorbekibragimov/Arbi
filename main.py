@@ -75,6 +75,9 @@ def onAppStart(app):
     app.playBtnTextImageS = app.interfaceBaseImage + 'playSecond.png'
     app.playerLabelImage = app.interfaceBaseImage + 'player.png'
     app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
+    app.startLevelImage = app.interfaceBaseImage + 'startLevel.png'
+    app.startRound = app.interfaceBaseImage + 'startRound.png'
+    app.levelStartOne = app.interfaceBaseImage + 'startLevel1.png'
     app.levelLabelImage = app.interfaceBaseImage + 'level.png'
     app.roundLabelImage = app.interfaceBaseImage + 'round.png'    
     app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
@@ -91,7 +94,7 @@ def onAppStart(app):
     app.btnHeight = 50
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['start', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail']
+    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail']
     app.gameState = 'start'
     app.paused = False
 
@@ -125,6 +128,10 @@ def onAppStart(app):
     app.gravity = 0.9
     app.jumpAngle = 45
 
+    # Start level transition
+    app.startLevelInitTime = None
+    app.startLevelDuration = 3
+
     # Music Effects
     # Cite: Professor Eduardo [Piazza]
     cntPath = pathlib.Path(__file__).parent.resolve()
@@ -133,16 +140,20 @@ def onAppStart(app):
     app.victoryMusic = Sound(f'file://{cntPath}/media/music/victory.mp3')
     app.mainTheme = Sound(f'file://{cntPath}/media/music/mainTheme.mp3')
     app.redEnemyJump = Sound(f'file://{cntPath}/media/music/redEnemyJump.mp3')
+    app.levelStartMusic = Sound(f'file://{cntPath}/media/music/levelStart.mp3')
 
 def redrawAll(app):
     if app.gameState == app.gameStates[0]:
         # the home page
         drawnHomeScreen(app)
+    elif app.gameState == app.gameStates[1]:
+        drawStartLevel(app)
     elif app.gameState == app.gameStates[5] \
         or app.gameState == app.gameStates[4]:
         # the player has either lost or won the game
         drawFinal(app)
     else:
+        app.levelStartMusic.pause()
         drawPyramid(app)
         drawEnemies(app)
         drawPlayer(app)
@@ -198,9 +209,15 @@ def onStep(app):
             if app.btnIsPressed:
                 app.gameState = app.gameStates[1]
                 app.mainTheme.pause()
+    
+        elif app.gameState == app.gameStates[1]:
+            # play music
+            elapsedTime = time.time() - app.startLevelInitTime
+            if elapsedTime - app.startLevelDuration > 0:
+                app.gameState = app.gameStates[2]
                 app.gameStartTime = time.time()
         
-        elif app.gameState == app.gameStates[1]:
+        elif app.gameState == app.gameStates[2]:
             # if the game is in progress
             checkBlockColors(app)
             enemyControls(app)
@@ -247,7 +264,7 @@ def onStep(app):
                 app.paused = False
                 app.deathTime = None
                 # the game state changes to 'inprogress'
-                app.gameState = app.gameStates[1]
+                app.gameState = app.gameStates[2]
                 # the basically sort of 'restarts' with the initial time changing
                 # to the current time.
                 app.enemySpawnInterval += app.playerRevivalTime
@@ -260,7 +277,9 @@ def onKeyPress(app, key):
         if app.gameState == app.gameStates[0]:
             app.playButtonState = 'on'
             app.btnIsPressed = True
-        elif app.gameState == app.gameStates[1]:
+            app.startLevelInitTime = time.time()
+            app.levelStartMusic.play()
+        elif app.gameState == app.gameStates[2]:
             # the game can be stopped only if it is in progress
             app.paused = not app.paused
 
@@ -292,6 +311,9 @@ def onMousePress(app, mouseX, mouseY):
     if app.gameState == app.gameStates[0]:
         if app.playButtonState == 'on':
             app.btnIsPressed = True
+            if app.startLevelInitTime is None:
+                app.startLevelInitTime = time.time()
+            app.levelStartMusic.play()
 
 # Pyramid
 def drawPyramid(app):
@@ -384,6 +406,29 @@ def drawSwear(app):
     imageCx = playerCx - 0.8 * app.playerWidth
     imageCy = playerCy - 2.5 * app.playerHeight
     drawImage(app.swearImage, imageCx, imageCy)
+
+def drawStartLevel(app):
+    # Level
+    levelWidth = 201
+    levelHeight = 37
+    txtWidth = 37
+
+    levelCx = app.width // 2 - txtWidth
+    levelCy = app.height // 2
+    drawImage(app.startLevelImage, levelCx, levelCy, align='center')
+
+    txtCx = levelCx + levelWidth // 2 + app.labelMargin
+    txtCy = levelCy
+    drawImage(app.levelStartOne, txtCx, txtCy, align='center')
+
+    # Round
+    txtWidth = 
+    roundCx = app.width // 2
+    roundCy = app.height // 2 + levelHeight
+    drawImage(app.startRound, roundCx, roundCy, align='center')
+
+    roundTxtCx = roundCx
+
 
 def playerJump(app, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
@@ -530,6 +575,9 @@ def detectCollision(app):
             if enemyCy >= playerCy - app.playerHeight // 4 \
                 and enemyCy <= playerCy + app.playerHeight // 4:
 
+                # no spawning enemy
+                app.enemiesSpawned = False
+                
                 # enemies get removed immediately
                 app.enemies.clear()
 
@@ -548,7 +596,6 @@ def detectCollision(app):
                     # setting the death time of the player
                     # this is needed to count the time till the revival
                     app.playerDeathTime = time.time()
-                    app.enemySpawned = False
 
 def checkBlockColors(app):
     if app.rawBlocks == 0:
