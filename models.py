@@ -116,10 +116,7 @@ class MovingActor(Actor):
         self.direction = direction
 
 class Player(MovingActor):
-    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int) -> None:
-        cx, cy = center
-        cy -= 100
-        center = (cx, cy)
+    def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int, state: str) -> None:
         super().__init__(tag, center, block, direction=direction)
 
         self.block = block
@@ -127,6 +124,7 @@ class Player(MovingActor):
         self.score = 0
         self.image = image
         self.lives = lives
+        self.state = state
     
     def getScore(self):
         return self.score
@@ -158,7 +156,7 @@ class Player(MovingActor):
 class Enemy(MovingActor):
     id = 0
     count = 0
-    def __init__(self, tag: str, center: tuple, block: Block, type: str, imageId: int, state: str) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, type: str, imageId: int, state: str, image: str) -> None:
         tag = f'{tag}{Enemy.id}'
 
         # add a falling effect when the enemy spawns
@@ -176,6 +174,10 @@ class Enemy(MovingActor):
         self.imageChangeInterval = 0.3
         self.imageId = imageId
         self.state = state
+        self.inPursue = False
+        self.transformation = False
+        self.image = image
+        self.direction = None
 
         Enemy.id += 1
         Enemy.count += 1

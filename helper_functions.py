@@ -6,13 +6,13 @@ def calculateDistance(size):
     return size // (2**0.5)
 
 def getDimenstions():
-    rows = 7
+    rows = 5
     blockSize = 50
     radius = (2**0.5) * blockSize // 2
     margin = 25
     return (rows, blockSize, radius, margin)
 
-def createBoard(app, rows):
+def createBoard(app, rows, offsetY):
     board = []
     for row in range(1, rows+1):
         numOfBlocks = row
@@ -26,7 +26,7 @@ def createBoard(app, rows):
             else:
                 centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             currentNumOfBlocks -= 1
-            centerY = app.wrapperHeight//2 + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
+            centerY = offsetY + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
             block = Block(tag=f'block', center=(centerX, centerY), 
                           position=(row-1, col), mainColor=app.mainColor, 
                           sideColors=app.sideColors[app.level-1])
@@ -117,3 +117,10 @@ def generateStars(app, maxCap: int, image: str):
 
 def calculateDistance(x1, x2, y1, y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
+
+def findBlockByCenter(board, center):
+    for row in len(board):
+        for col in len(board[row]):
+            block = board[row][col]
+            if block.getCenter() == center:
+                return block
