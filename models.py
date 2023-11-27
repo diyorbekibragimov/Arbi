@@ -133,6 +133,9 @@ class Player(MovingActor):
         self.image = image
         self.lives = lives
         self.state = state
+        self.disk = None
+        self.landed = False
+        self.dropOffVelocity = 0
     
     def getScore(self):
         return self.score
@@ -160,6 +163,48 @@ class Player(MovingActor):
         
     def getDirection(self):
         return self.direction
+    
+    def jumpDisk(self, disk, angle, direction):
+        _, cy = self.getCenter()
+        _, diskCy = disk.getCenter()
+        self.velocity = (diskCy-cy) // 10
+        self.angle = angle
+        self.direction = direction
+        self.disk = disk
+
+    def handleDiskJump(self):
+        blockCx, _ = self.block.getCenter()
+        diskX, diskY = self.disk.getCenter()
+        distanceX = diskX - blockCx
+        deltaX = distanceX // 10
+        actorCx, actorCy = super().getCenter()
+
+        # based on the direction of the player
+        # its x and y coordinates should either
+        # increase or decrease.
+        if self.direction == 'top-left':
+            if actorCx > diskX:
+                actorCx += deltaX * math.cos(self.angle)
+            if actorCy > diskY:
+                actorCy += self.velocity * 0.9
+
+            if actorCx <= diskX and actorCy <= diskY:
+                self.landed = True
+        
+        elif self.direction == 'top-right':
+            if actorCx < diskX:
+                actorCx += deltaX * math.cos(self.angle)
+            if actorCy > diskY:
+                actorCy += self.velocity * 0.9
+
+            if actorCx >= diskX and actorCy <= diskY:
+                self.landed = True
+
+        if not self.landed:
+            super().changeCenter((actorCx, actorCy))
+            self.velocity -= MovingActor.gravity
+        else:
+            super().changeCenter((diskX, diskY))
 
 class Enemy(MovingActor):
     id = 0
@@ -230,11 +275,20 @@ class Enemy(MovingActor):
 
 class Disk(Actor):
     id = 0
-    def __int__(self, tag: str, center: tuple, imageId: int, image: str):
+    def __init__(self, tag: str, center: tuple, imageId: int, image: str, position: tuple, blockUp: Block):
         tag = f'{tag}{Disk.id}'
         super().__init__(tag, center)
+
+        self.id = Disk.id
         self.imageId = imageId
         self.image = image
+        self.position = position
+        self.imageSetTime = time.time()
+        self.imageChangeInterval = 0.09
+        self.blockUp = blockUp
+        self.velocity = 0
+        self.diagonalVelocityX = 0
+        self.diagonalVelocityY = 0
 
         Disk.id += 1
 

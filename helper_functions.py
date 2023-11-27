@@ -7,7 +7,7 @@ def calculateDistance(size):
 
 def getDimenstions():
     rows = 6
-    blockSize = 50
+    blockSize = 45
     radius = (2**0.5) * blockSize // 2
     margin = 25
     return (rows, blockSize, radius, margin)

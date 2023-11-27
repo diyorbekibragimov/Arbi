@@ -1,5 +1,5 @@
 from cmu_graphics import *
-from models import (Player, Enemy)
+from models import (Player, Enemy, Disk)
 from helper_functions import *
 
 from random import randint, randrange
@@ -43,14 +43,14 @@ def onAppStart(app):
 
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
-    app.board = createBoard(app, app.rows, app.wrapperHeight // 2)
+    app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
     app.rawBlocks = countBlocks(app.board)
 
     # player starts on the highest col of the pyramid
     app.playerImageBase = 'media/spritesheet/player-'
     app.playerLives = 3
     app.playerInitDirection = 'down-right'
-    app.playerStates = ['idle', 'jump']
+    app.playerStates = ['idle', 'jump', 'disk', 'fly', 'dropoff']
     app.playerImage = app.playerImageBase + f'{app.playerInitDirection}-idle.png'
     app.playerWidth = 45
     app.playerHeight = 45
@@ -98,7 +98,7 @@ def onAppStart(app):
     app.btnHeight = 50
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail']
+    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail', 'instructions']
     app.gameState = 'start'
     app.paused = False
 
@@ -124,6 +124,17 @@ def onAppStart(app):
     app.fixedGameAddSpeed = 0.2
     app.greenEnemyAppear = 0
     app.maxGreenEnemyAppear = 2
+
+    # disks
+    app.diskImageBase = 'media/spritesheet/disks/'
+    app.disks = createDisks(app.board, app.radius, app.diskImageBase)
+    app.diskImageChangeInterval = 0.09
+    app.fixedDiskImageChangeInterval = 0.09
+    firstBlockCx, firstBlockCy = app.board[0][0].getCenter()
+    app.dropOffCoordinates = (firstBlockCx, firstBlockCy-2*app.blockSize)
+
+    # Instruction page
+    instructionId = 1
 
     app.animationStartTime = None
     app.animationCount = 3
@@ -164,6 +175,7 @@ def onAppStart(app):
     app.purpleEnemyJump = Sound(f'file://{cntPath}/media/music/snakeJump.mp3')
     app.snakeJump = Sound(f'file://{cntPath}/media/music/grownSnakeJump.mp3')
     app.levelStartMusic = Sound(f'file://{cntPath}/media/music/levelStart.mp3')
+    app.liftMusic = Sound(f'file://{cntPath}/media/music/lift.mp3')
 
 def redrawAll(app):
     if app.gameState == app.gameStates[0]:
@@ -175,10 +187,14 @@ def redrawAll(app):
         or app.gameState == app.gameStates[6]:
         # the player has either lost or won the game
         drawFinal(app)
+    elif app.gameState == app.gameStates[7]:
+        # instructions
+        drawInstruction(app)
     else:
         app.levelStartMusic.pause()
         drawPyramid(app, app.board)
         drawEnemies(app)
+        drawDisks(app)
         drawPlayer(app.player)
         drawInterface(app)
 
@@ -259,10 +275,99 @@ def onStep(app):
 
                     # change the picture of the player to the original state
                     app.player.image = app.playerImageBase + f'{app.player.direction}-idle.png'
+            elif app.player.state == app.playerStates[2]:
+                # if the player is jumping to the disk
+                if not app.player.landed:
+                    # if the state of player is jumping
+                    app.player.handleDiskJump()
+                else:
+                    app.player.landed = False
+                    # the player has fully jumped to the disk
+                    # now the flying mode should be activated
+                    app.player.state = app.playerStates[3]
+
+                    # change the picture of the player to the original state
+                    app.player.image = app.playerImageBase + f'{app.player.direction}-idle.png'
+
+                    # play the lift music
+                    app.liftMusic.play()
+
+            elif app.player.state == app.playerStates[3]:
+                # start changing the coordinates of the player and the disk
+                _, blockUpy = app.player.disk.blockUp.getCenter()
+                playerCx, playerCy = app.player.getCenter()
+                diskCx, diskCy = app.player.disk.getCenter()
+                # until the disk does not reach the y coordinate of the 
+                # block that is one block upper, it won't start moving
+                # diagonally
+                if diskCy >= blockUpy:
+                    # change the y coordinate of the player really quickly
+                    playerCy -= app.player.disk.velocity
+                    diskCy -= app.player.disk.velocity
+
+                    app.player.disk.changeCenter((diskCx, diskCy))
+                    app.player.changeCenter((playerCx, playerCy))
+
+                else:
+                    # now let's start moving diagonally
+                    dropCx, dropCy = app.dropOffCoordinates
+
+                    if diskCy >= dropCy:
+                        # changing the y coordinate
+                        # of the disk and the player
+                        diskCy += app.player.disk.diagonalVelocityY
+                        playerCy += app.player.disk.diagonalVelocityY
+
+                    if app.player.direction == 'top-left':
+                        if diskCx <= dropCx:
+                            # changing the x coordinate
+                            # of the disk and the player
+                            diskCx += app.player.disk.diagonalVelocityX + 1
+                            playerCx += app.player.disk.diagonalVelocityX + 1
+
+                    elif app.player.direction == 'top-right':
+                        if diskCx >= dropCx:
+                            # changing the x coordinate
+                            # of the disk and the player
+                            diskCx += app.player.disk.diagonalVelocityX
+                            playerCx += app.player.disk.diagonalVelocityX 
+
+                    app.player.disk.changeCenter((diskCx, diskCy))
+                    app.player.changeCenter((playerCx, playerCy))
+
+                    if ((app.player.direction == 'top-left' and diskCx >= dropCx) \
+                        or (app.player.direction == 'top-right' and diskCx <= dropCx)
+                        ) and diskCy <= dropCy:
+                        # DROP OFF!
+                        # first we make the disk disappear
+                        index = findModelIndex(app.disks, app.player.disk.id)
+                        app.disks.pop(index)
+                        app.player.disk = None
+                        app.player.state = app.playerStates[4]
+                        _, blockCy = app.board[0][0].getCenter()
+
+                        # set the drop off velocity
+                        app.player.dropOffVelocity = (blockCy - playerCy) // 20
+
+            elif app.player.state == app.playerStates[4]:
+                playerCx, playerCy = app.player.getCenter()
+                _, blockCy = app.board[0][0].getCenter()
+                if playerCy <= blockCy:
+                    playerCy += app.player.dropOffVelocity
+                    app.player.changeCenter((playerCx, playerCy))
+                else:
+                    # the player has landed on the first block
+                    app.player.block = app.board[0][0]
+                    # change the state of the player
+                    app.player.state = app.playerStates[0]
+                    if app.player.block.mainColor != app.targetColor:
+                        app.player.block.mainColor = app.targetColor
+                        app.rawBlocks -= 1
 
             # if the game is in progress
             checkBlockColors(app)
             enemyControls(app)
+            animateDisks(app)
 
             elapsedTime = time.time() - app.gameStartTime
             if len(app.enemies) < app.maximumEnemiesOnBoard:
@@ -330,13 +435,18 @@ def onStep(app):
                 # the player gets revived and the game continues
                 # the progress and the position of the player does not change
                 app.paused = False
+                # revert the player to the previous block
+                app.player.state = app.playerStates[0]
+                app.player.changeCenter(app.player.block.getCenter())
+
                 app.playerDeathTime = None
                 # the game state changes to 'inprogress'
                 app.gameState = app.gameStates[2]
                 # this basically sort of 'restarts' with the initial time changing
                 # to the current time.
                 app.gameStartTime = time.time()
-                app.enemySpawnInterval = 2
+                app.diskImageChangeInterval = app.fixedDiskImageChangeInterval
+                app.enemySpawnInterval = app.enemySpawnFixedInterval
 
 def onKeyPress(app, key):
     if key == 'r':
@@ -354,7 +464,9 @@ def onKeyPress(app, key):
 
     if not app.paused \
         and app.gameState == app.gameStates[2] \
-        and app.player.state != app.playerStates[1]:
+        and app.player.state != app.playerStates[1] \
+        and app.player.state != app.playerStates[3] \
+        and app.player.state != app.playerStates[4]:
         if key in app.allowedMovementKeys:
             # the player is jumping
             playerJump(app, app.board, app.player, app.playerStates, key)
@@ -399,6 +511,12 @@ def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainCol
     drawPolygon(*topCoordinates, fill=mainColor, border='black', borderWidth=1)
     drawPolygon(*leftSideCoordinates, fill=sideColors[0], border='black', borderWidth = 1)
     drawPolygon(*rightSideCoordinates, fill=sideColors[1], border='black', borderWidth=1)
+
+# Disks
+def drawDisks(app):
+    for disk in app.disks:
+        cx, cy = disk.getCenter()
+        drawImage(disk.image, cx, cy, align='center')
 
 # Player
 def drawPlayer(player):
@@ -506,6 +624,8 @@ def drawStartLevel(app):
     # Player
     drawPlayer(app.startPlayer)
 
+def drawInstruction(app):
+    pass
 
 def playerJump(app, board, player, playerStates, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
@@ -527,12 +647,35 @@ def playerJump(app, board, player, playerStates, key):
         direction += 'down-right'
 
     if isPositionLegal(app, nextRow, nextCol):
-        nxtBlock = board[nextRow][nextCol]
-        player.jump(nxtBlock, app.jumpAngle, direction) # sets the next jumping block of the player
-        player.state = playerStates[1]
-        # change the picture of the player
-        player.image = app.playerImageBase + f'{direction}-jump.png'
+        try:
+            nxtBlock = board[nextRow][nextCol]
+        
+            player.jump(nxtBlock, app.jumpAngle, direction) # sets the next jumping block of the player
+            player.state = playerStates[1]
+            # change the picture of the player
+            player.image = app.playerImageBase + f'{direction}-jump.png'
+        except:
+            print("Failed to jump")
     else:
+        # maybe player is jumping towards disks
+        if row == len(app.board) - 2 and (col == 0 or col == row):
+            # check if the disk is still there
+            disk = isDiskPresent(app, row, col)
+            if disk != -1:
+                # disk is present
+                player.jumpDisk(disk, 45, direction)
+                player.state = playerStates[2] # flying state
+                player.image = app.playerImageBase + f'{direction}-jump.png'
+
+                # setting the velocity of the disk
+                _, blockUpCy = disk.blockUp.getCenter()
+                diskCx, diskCy = disk.getCenter()
+                dropCx, dropCy = app.dropOffCoordinates
+
+                disk.velocity = (diskCy - blockUpCy) // 10
+                disk.diagonalVelocityX = (dropCx - diskCx) // 90
+                disk.diagonalVelocityY = (dropCy - diskCy) // 90
+
         # the player will fall out of the pyramid
         print("Falling")
 
@@ -930,6 +1073,58 @@ def calculateSnakes(enemies):
             count += 1
     return count
 
+def createDisks(board, blockRadius, diskImageBase, number=2):
+    leftBlock = board[-2][0]
+    rightBlock = board[-2][-1]
+    
+    leftBlockCx, leftBlockCy = leftBlock.getCenter()
+    rightBlockCx, rightBlockCy = rightBlock.getCenter()
+
+    leftDiskCx = leftBlockCx - blockRadius
+    leftDiskCy = leftBlockCy - blockRadius
+
+    rightDiskCx = rightBlockCx + blockRadius
+    rightDiskCy = rightBlockCy - blockRadius
+
+    centers = [(leftDiskCx, leftDiskCy), (rightDiskCx, rightDiskCy)]
+    
+    disks = list()
+    for i in range(number):
+        diskImage = diskImageBase + f'disk1.png'
+        row = len(board) - 2
+        col = 0 if i == 0 else len(board[row]) - 1
+        blockUp = None
+        if col == 0:
+            blockUp = board[row-1][0]
+        else:
+            blockUp = board[row-1][row-1]
+        disk = Disk('disk', centers[i], imageId=1, image=diskImage, \
+                    position=(row, col), blockUp=blockUp)
+        disks.append(disk)
+
+    return disks
+
+def animateDisks(app):
+    animated = False
+    for disk in app.disks:
+        elapsedTime = time.time() - app.gameStartTime
+        if elapsedTime - app.diskImageChangeInterval > 0:
+            if disk.imageId < 4:
+                disk.imageId += 1
+            else:
+                disk.imageId = 1
+            disk.image = app.diskImageBase + f'disk{disk.imageId}.png'
+            animated = True
+    if animated:
+        app.diskImageChangeInterval += app.fixedDiskImageChangeInterval
+
+def isDiskPresent(app, row, col):
+    for disk in app.disks:
+        diskRow, diskCol = disk.position
+        if row == diskRow and diskCol == col:
+            return disk
+    return -1
+
 def nextGame(app):
     # Increase the score of the player
     currentRound = app.round
@@ -951,6 +1146,11 @@ def nextGame(app):
     if currentRound < app.rounds:
         app.round = currentRound + 1
         app.level = currentLevel
+        if app.level > 1 and app.round > 1:
+            app.rows = currentRows
+            app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
+            app.rawBlocks = countBlocks(app.board)
+            app.disks = createDisks(app.board, app.radius, app.diskImageBase)
 
         if curMaxEnemiesOnBoard < app.fixedMaxEnemiesOnBoard:
             app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard + 1
@@ -963,8 +1163,9 @@ def nextGame(app):
 
     elif currentLevel < app.levels:
         app.rows = currentRows + 1
-        app.board = createBoard(app, app.rows, app.wrapperHeight // 2)
+        app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
         app.rawBlocks = countBlocks(app.board)
+        app.disks = createDisks(app.board, app.radius, app.diskImageBase)
         app.level = currentLevel + 1
 
         app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
@@ -979,14 +1180,7 @@ def nextGame(app):
     app.player.updateScore(prevScore + app.completionBonus)
 
 def playGame():
-    rows, blockSize, radius, margin = getDimenstions()
-
-    wrapperWidth = (rows + 1) * blockSize
-    wrapperHeight = rows * blockSize + (rows + 1) * radius + 2 * margin
-
-    width = wrapperWidth * 2
-    height = int(wrapperHeight * 1.5)
-    runApp(width=width, height=height)
+    runApp(width=800, height=600)
 
 def main():
     playGame()
