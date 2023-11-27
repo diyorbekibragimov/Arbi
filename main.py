@@ -3,7 +3,8 @@ from models import (Player, Enemy, Disk)
 from helper_functions import *
 
 from random import randint, randrange
-import time, pathlib, copy
+import time, pathlib, copy, sys
+import joystick
 
 # TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
 # to learn how to work with sprites
@@ -1178,6 +1179,15 @@ def nextGame(app):
     
     app.player.updateLives(remainingLives)
     app.player.updateScore(prevScore + app.completionBonus)
+
+# Arcade Support
+def onJoyPress(app, button, joystick):
+    if button == '9':
+        # Start
+        pass
+    if button == '5':
+        # P1
+        sys.exit(0)
 
 def playGame():
     runApp(width=800, height=600)
