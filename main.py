@@ -3,7 +3,7 @@ from models import (Player, Enemy)
 from helper_functions import *
 
 from random import randint, randrange
-import time, pathlib
+import time, pathlib, copy
 
 # TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
 # to learn how to work with sprites
@@ -85,6 +85,8 @@ def onAppStart(app):
     app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
     app.bonusScoreImage = app.interfaceBaseImage + 'AddScore250.png'
     app.bonusPointsImage = app.interfaceBaseImage + 'bonusPoints.png'
+    app.gameOverText = app.interfaceBaseImage + 'gameOverText.png'
+    app.continueText = app.interfaceBaseImage + 'continueText.png'
 
     app.swearImage = app.interfaceBaseImage + 'swear80.png'
     app.stars = generateStars(app, maxCap=5, image=app.starImage)
@@ -100,25 +102,28 @@ def onAppStart(app):
     app.gameState = 'start'
     app.paused = False
 
-    app.enemyTypes = ['red', 'snake', 'revilo']
+    app.enemyTypes = ['red', 'snake', 'dalekh', 'chiwarra']
     app.enemyImageBase = 'media/spritesheet/enemies/'
     app.enemies = list()
     app.enemySpawnInterval = 2
     app.enemyStates = ['idle', 'jump']
     app.enemiesSpawned = False
     app.readyEnemies = 0
-    app.maximumEnemiesOnBoard = 1
+    app.gameStartTime = None
+
+    # level management
+    app.maximumEnemiesOnBoard = 4
+    app.minEnemySpawnInterval = 1
+    app.enemySpawnFixedInterval = 4
     app.fixedMaxEnemiesOnBoard = 10
     app.numberOfEnemiesSpawn = 1
     app.maxEnemiesSpawn = 2
-    app.fixedInterval = 2
-    app.gameStartTime = None
-    app.enemyCntrlIntrval = 1
-    app.fixedEnemyCntrlIntrval = app.enemyCntrlIntrval
-    app.snakeFixedCntrIntrval = 2
-    
-    app.enemyImageChangeInterval = 0.3
-    app.fixedEnemyImageChangeInterval = 0.3
+    app.maxSnakesOnBoard = 1
+    app.gameAddSpeed = 0
+    app.maxGameAddSpeed = 0.4
+    app.fixedGameAddSpeed = 0.2
+    app.greenEnemyAppear = 0
+    app.maxGreenEnemyAppear = 2
 
     app.animationStartTime = None
     app.animationCount = 3
@@ -264,16 +269,42 @@ def onStep(app):
                 if elapsedTime - app.enemySpawnInterval > 0:
                     spawnEnemy(app)
                     app.enemiesSpawned = True
-                    app.enemySpawnInterval += app.fixedInterval
+                    app.enemySpawnInterval += app.enemySpawnFixedInterval
 
         if app.enemiesSpawned and app.readyEnemies != app.numberOfEnemiesSpawn:
             enemy = app.enemies[-1]
             enemyCX, enemyCY = enemy.getCenter()
+            
+            # UNDER DEVELOPMENT
+            # if enemy.type == app.enemyTypes[2] \
+            #     or enemy.type == app.enemyTypes[3]:
+            #     # aliens: revilo or thavani
+            #     side = enemy.direction.split('-')[1]
+
+            #     curBlckCx = None
+
+            #     if side == 'left':
+            #         curBlckCx, _ = enemy.block.getLeftSideCenter()
+            #     else:
+            #         curBlckCx, _ = enemy.block.getRightSideCenter()
+
+            #     if enemyCX != curBlckCx:
+            #         enemyCX += 5
+            #         enemy.changeCenter((enemyCX, enemyCY))
+            #     else:
+            #         app.readyEnemies += 1
+            # else:
+                # standard enemy
             _, currentBlockCY = enemy.block.getCenter()
             if enemyCY != currentBlockCY:
                 enemyCY += 5
                 enemy.changeCenter((enemyCX, enemyCY))
             else:
+                if enemy.type == app.enemyTypes[2] or enemy.type == app.enemyTypes[3]:
+                    block = enemy.block
+                    if block.mainColor == app.targetColor:
+                        block.mainColor = app.mainColor
+                        app.rawBlocks += 1
                 app.readyEnemies += 1
         else:
             app.enemiesSpawned = False
@@ -360,8 +391,7 @@ def drawPyramid(app, board):
 def drawRow(app, board, row):
     nRow = board[row]
     for block in nRow:
-        centerX, centerY = block.getCenter()
-        top, left, right = calculateCoordinates(app, centerX, centerY)
+        top, left, right = calculateCoordinates(app, block)
         drawBlock(top, left, right, block.mainColor, block.sideColors)
 
 def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainColor, sideColors):
@@ -524,8 +554,20 @@ def drawnHomeScreen(app):
 
 # Final
 def drawFinal(app):
-    cx, cy = app.width // 2, app.height // 2
+    cx, cy = app.width // 2, app.height // 3
     drawImage(app.gameOverImage, cx, cy, align='center')
+
+    # text
+    continueHeight = 29
+    gameOverHeight = 29
+
+    continueX = cx
+    continueY = app.height // 2 - gameOverHeight
+    drawImage(app.continueText, continueX, continueY, align='center')
+
+    gameOverX = cx 
+    gameOverY = app.height // 2 + continueHeight
+    drawImage(app.gameOverText, gameOverX, gameOverY, align='center')
 
 def drawStars(app):
     for star in app.stars:
@@ -541,15 +583,91 @@ def drawClickButton(app):
         drawImage(app.playBtnTextImageS, app.width//2, app.height//2, align='center')
 
 def spawnEnemy(app):
-    #enemyType = randomEnemySelection(app.enemyTypes)
-    enemyType = 'snake'
+    # chiwarra and dalekh appear only in third rounds of each level
+    snakeAllowed = False
+    greenAllowed = False
+    numSnakes = calculateSnakes(app.enemies)
+    copyEnemyTypes = copy.copy(app.enemyTypes)
+
+    if numSnakes < app.maxSnakesOnBoard:
+        snakeAllowed = True
+
+    # dalekh and chiwarra can appear a limited number of times
+    if app.greenEnemyAppear < app.maxGreenEnemyAppear:
+        # also they appear from the second round
+        if app.round >= 2:
+            # also it does not make sense for them to appear in the beginning
+            # i will do implement the feature when they appear when only less than
+            # a certain number of blocks left
+            if app.rawBlocks <= 5:
+                greenAllowed = True
+    
+    if not snakeAllowed:
+        # if the snake is not allowed,
+        # simply remove it from the copy version
+        # of the enemyTypes
+        copyEnemyTypes.remove(app.enemyTypes[1])
+    
+    if not greenAllowed:
+        # if the green enemy is not allowed
+        # do the same as snakeAllowed
+        copyEnemyTypes.remove(app.enemyTypes[2])
+        copyEnemyTypes.remove(app.enemyTypes[3])
+    else:
+        # if the green allowed, then they should appear immediately
+        copyEnemyTypes.remove(app.enemyTypes[0])
+        if app.enemyTypes[1] in copyEnemyTypes:
+            copyEnemyTypes.remove(app.enemyTypes[1])
+
+    enemyType = randomEnemySelection(copyEnemyTypes)
+
+    if app.round >= 2:
+        # check how many times dalekh and chiwarra appeared
+        if enemyType == app.enemyTypes[2] or enemyType == app.enemyTypes[3]:
+            app.greenEnemyAppear += 1
+
     randomBlockIndex = randint(0, 1)
+    randomBlock = None
+    enemyImage = None
+
+    # UNDER DEVELOPMENT
+    # if enemyType == app.enemyTypes[2]:
+    #     # revilo
+    #     # the last row but the first column
+    #     randomBlock = app.board[-1][0]
+    #     print(randomBlock.sideCenter)
+    # elif enemyType == app.enemyTypes[3]:
+    #     # thavani
+    #     # the last row and the last column
+    #     randomBlock = app.board[-1][-1]
+    # else:
+        # standard way
+
     randomBlock = app.board[1][randomBlockIndex]
-    imageId = 1
-    enemyImage = app.enemyImageBase + f'{enemyType}{imageId}.png'
+    
+    if enemyType == app.enemyTypes[0] \
+        or enemyType == app.enemyTypes[1]:
+        # simple enemies
+        enemyImage = app.enemyImageBase + f'{enemyType}-idle.png'
+    else:
+        # special enemies: revilo, thavani, dalekh, and chiwarra
+        direction = 'down-right'
+        enemyImage = app.enemyImageBase + f'{enemyType}-{direction}-idle.png'
+
+    # UNDER DEVELOPMENT
+    # if enemyType == app.enemyTypes[2] \
+    #     or enemyType == app.enemyTypes[3]:
+    #     # aliens have different centers
+    #     # the first time it appears
+    #     # it is faced the down-right direction
+    #     newEnemy = Enemy(tag=enemyType, center=randomBlock.getRightSideCenter(), 
+    #                 block=randomBlock, type=enemyType, state=app.enemyStates[0], 
+    #                 image=enemyImage, direction='down-right')
+    # else:
     newEnemy = Enemy(tag=enemyType, center=randomBlock.getCenter(), 
-                    block=randomBlock, type=enemyType, imageId=imageId,
-                    state=app.enemyStates[0], image=enemyImage)
+        block=randomBlock, type=enemyType, state=app.enemyStates[0], 
+        image=enemyImage, direction='')
+    
     app.enemies.append(newEnemy)
 
 def enemyControls(app):
@@ -565,22 +683,24 @@ def enemyControls(app):
     until it either kills him or dies itself.
     """
     for enemy in enemies:
-        if not enemy.transformation:
-            animateEnemy(app, enemy)
-        # movement
         elapsedTime = time.time() - enemy.moveTime
-        if elapsedTime - app.enemyCntrlIntrval > 0:
-            enemyMove(app, enemy)
+        addSpeed = 0
 
-def animateEnemy(app, enemy):
-    elapsedTime = time.time() - enemy.spawnTime
-    if elapsedTime - enemy.imageChangeInterval > 0:
-        enemy.imageId = 2 if enemy.imageId == 1 else 1
-        enemy.image = app.enemyImageBase + f'{enemy.type}{enemy.imageId}.png'
-        enemy.increaseImageChangeInterval(app.fixedEnemyImageChangeInterval)
+        # how fast the enemy increases in speed upon each round and level
+        # depends on its type
+        if enemy.type == app.enemyTypes[0]:
+            # the red enemy remains the same
+            addSpeed = app.gameAddSpeed
+        elif enemy.type == app.enemyTypes[1]:
+            # the snake is twice the speed of the game
+            addSpeed = 2 * app.gameAddSpeed
+
+        if elapsedTime - (enemy.jumpInterval - addSpeed) > 0:
+            enemyMove(app, enemy)
 
 def enemyMove(app, enemy: Enemy):
     if enemy.state == app.enemyStates[0]:
+        
         if enemy.type == app.enemyTypes[0]:
             app.redEnemyJump.play()
         elif enemy.type == app.enemyTypes[1]:
@@ -594,7 +714,16 @@ def enemyMove(app, enemy: Enemy):
             enemy.move = randint(0, 1)
         else:
             enemyPursue(app, enemy)
-    
+
+        # UNDER DEVELOPMENT
+        # we need to save the previous direction 
+        # of the enemy, which is an alien, so
+        # that we could identify centers of the block
+        # the alien is currently located.
+        # if enemy.type == app.enemyTypes[2] \
+        #     or enemy.type == app.enemyTypes[3]:
+        #     enemy.prevDirection = enemy.direction
+
         if enemy.move == 0:
             enemy.direction = 'down-left'
         elif enemy.move == 1:
@@ -603,9 +732,6 @@ def enemyMove(app, enemy: Enemy):
             enemy.direction = 'top-right'
         else:
             enemy.direction = 'top-left'
-        
-        if enemy.transformation:
-            enemy.image = app.enemyImageBase + f'{enemy.type}-{enemy.direction}.png'
 
         sign = +1 if enemy.move <= 1 else -1
 
@@ -615,15 +741,29 @@ def enemyMove(app, enemy: Enemy):
             # first, update the enemy model by calling jump()
             # which updates next block, velocity, and angle
             nxtBlock = app.board[nextRow][nextCol]
+            
+            # UNDER DEVELOPMENT
+            # aliens have a special type of jump
+            # they jump on sides of the blocks rather than tops
+
+            # if enemy.type == app.enemyTypes[2] \
+            #     or enemy.type == app.enemyTypes[3]:
+            #     enemy.alienJump(nxtBlock, app.jumpAngle, enemy.direction)
+            # else:
+
             enemy.jump(nxtBlock, app.jumpAngle, enemy.direction)
+
             enemy.state = app.enemyStates[1]
-            # change the picture of the enemy
-            if enemy.transformation:
+            # change the picture of the enemy: snake, dalekh, chiwarra
+            if enemy.transformation or (enemy.type == app.enemyTypes[2] or enemy.type == app.enemyTypes[3]):
                 enemy.image = app.enemyImageBase + f'{enemy.type}-{enemy.direction}-jump.png'
+            elif enemy.type == app.enemyTypes[0] or enemy.type == app.enemyTypes[1]:
+                enemy.image = app.enemyImageBase + f'{enemy.type}-jump.png'
         else:
             if enemy.type == app.enemyTypes[1]:
                 # snake should start pursuing the player
                 # snake is in pursue
+                # 
                 if not enemy.transformation:
                     enemy.transformation = True
                 enemy.inPursue = True
@@ -640,17 +780,24 @@ def enemyMove(app, enemy: Enemy):
             # enemy has landed on the block
             enemy.landed = False
 
+            # the two enemies: dalekh and chiwarra change the colors of the blocks
+            if enemy.type == app.enemyTypes[2] \
+                or enemy.type == app.enemyTypes[3]:
+                block = enemy.block
+                if block.mainColor == app.targetColor:
+                    block.mainColor = app.mainColor
+                    app.rawBlocks += 1
+
             # enemy is not in the jumping state anymore
             enemy.state = app.enemyStates[0]
             # increase the move time of the enemy
-            if enemy.type == app.enemyTypes[1]:
-                enemy.moveTime += app.snakeFixedCntrIntrval
-            else:
-                enemy.moveTime += app.fixedEnemyCntrlIntrval
+            enemy.moveTime += enemy.jumpInterval
 
             # changing the picture of the enemy
-            if enemy.transformation:
+            if enemy.transformation or (enemy.type == app.enemyTypes[2] or enemy.type == app.enemyTypes[3]):
                 enemy.image = app.enemyImageBase + f'{enemy.type}-{enemy.direction}-idle.png'
+            elif enemy.type == app.enemyTypes[0] or enemy.type == app.enemyTypes[1]:
+                enemy.image = app.enemyImageBase + f'{enemy.type}-idle.png'
 
 def enemyPursue(app, enemy):
     enemyBlckCx, enemyBlckCy = enemy.block.getCenter()
@@ -713,33 +860,43 @@ def detectCollision(app):
 
     for enemy in enemies:
         enemyCx, enemyCy = enemy.getCenter()
+
         if enemyCx >= playerCx - app.playerWidth // 4 \
             and enemyCx <= playerCx + app.playerWidth // 4:
 
             if enemyCy >= playerCy - app.playerHeight // 4 \
                 and enemyCy <= playerCy + app.playerHeight // 4:
 
-                # no spawning enemy
-                app.enemiesSpawned = False
-                
-                # enemies get removed immediately
-                app.enemies.clear()
+                if (enemy.type == app.enemyTypes[2] or enemy.type == app.enemyTypes[3]):
+                    # the two enemies: dalekh and chiwarra do not kill the player
 
-                res = app.player.takeLife()
-                # display swear and play a swear music
-                app.swear.play()
+                    # the collision works only when the player is idle
 
-                if res == -1:
-                    # no lives left
-                    app.gameState = app.gameStates[6]
+                    if app.player.state == app.playerStates[0]:
+                        index = findModelIndex(app.enemies, enemy.id)
+                        app.enemies.pop(index)
                 else:
-                    # the state of the game changes to 'playerDied'
-                    app.gameState = app.gameStates[4]
-                    # the game gets paused
-                    app.paused = True
-                    # setting the death time of the player
-                    # this is needed to count the time till the revival
-                    app.playerDeathTime = time.time()
+                    # no spawning enemy
+                    app.enemiesSpawned = False
+                    
+                    # enemies get removed immediately
+                    app.enemies.clear()
+
+                    res = app.player.takeLife()
+                    # display swear and play a swear music
+                    app.swear.play()
+
+                    if res == -1:
+                        # no lives left
+                        app.gameState = app.gameStates[6]
+                    else:
+                        # the state of the game changes to 'playerDied'
+                        app.gameState = app.gameStates[4]
+                        # the game gets paused
+                        app.paused = True
+                        # setting the death time of the player
+                        # this is needed to count the time till the revival
+                        app.playerDeathTime = time.time()
 
 def checkBlockColors(app):
     if app.rawBlocks == 0:
@@ -766,6 +923,13 @@ def getBonusAnimation(app):
         bonusTextX, bonusTextY = app.width // 2, app.height - 3 * app.labelMargin
         drawImage(app.bonusTextImage, bonusTextX, bonusTextY, align='center')
 
+def calculateSnakes(enemies):
+    count = 0
+    for enemy in enemies:
+        if enemy.type == 'snake':
+            count += 1
+    return count
+
 def nextGame(app):
     # Increase the score of the player
     currentRound = app.round
@@ -774,6 +938,10 @@ def nextGame(app):
     prevScore = app.player.getScore()
     remainingLives = app.player.getLives()
     curMaxEnemiesOnBoard = app.maximumEnemiesOnBoard
+    curGameAddSpeed = app.gameAddSpeed
+    curMaxGreeEnemyAppear = app.maxGreenEnemyAppear
+    curEnemySpawnFixedInterval = app.enemySpawnFixedInterval
+
     onAppStart(app)
 
     app.gameState = app.gameStates[1]
@@ -783,15 +951,26 @@ def nextGame(app):
     if currentRound < app.rounds:
         app.round = currentRound + 1
         app.level = currentLevel
-        app.numberOfEnemiesSpawn += 1
+
         if curMaxEnemiesOnBoard < app.fixedMaxEnemiesOnBoard:
             app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard + 1
+
+        if curGameAddSpeed < app.maxGameAddSpeed:
+            app.gameAddSpeed = curGameAddSpeed + app.fixedGameAddSpeed
+        
+        if curEnemySpawnFixedInterval > app.minEnemySpawnInterval:
+            app.enemySpawnFixedInterval = curEnemySpawnFixedInterval - 1
 
     elif currentLevel < app.levels:
         app.rows = currentRows + 1
         app.board = createBoard(app, app.rows, app.wrapperHeight // 2)
         app.rawBlocks = countBlocks(app.board)
         app.level = currentLevel + 1
+
+        app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
+        app.maxGreenEnemyAppear = curMaxGreeEnemyAppear + 1
+
+        app.enemySpawnFixedInterval -= (app.level - 1)
     else:
         # complete win
         app.gameState = app.gameStates[5]

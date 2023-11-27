@@ -24,7 +24,17 @@ class Block(Actor):
         self.position = position
         self.mainColor = mainColor
         self.sideColors = sideColors
+        self.sideCenter = None
         Block.id += 1
+
+    def getSideCenter(self):
+        return self.sideCenter
+    
+    def getLeftSideCenter(self):
+        return self.sideCenter[0]
+
+    def getRightSideCenter(self):
+        return self.sideCenter[1]
 
 class MovingActor(Actor):
     gravity = 0.9
@@ -119,8 +129,6 @@ class Player(MovingActor):
     def __init__(self, tag: str, center: tuple, block: Block, direction: int, image: str, lives: int, state: str) -> None:
         super().__init__(tag, center, block, direction=direction)
 
-        self.block = block
-        self.nextBlock = None
         self.score = 0
         self.image = image
         self.lives = lives
@@ -156,34 +164,79 @@ class Player(MovingActor):
 class Enemy(MovingActor):
     id = 0
     count = 0
-    def __init__(self, tag: str, center: tuple, block: Block, type: str, imageId: int, state: str, image: str) -> None:
+    def __init__(self, tag: str, center: tuple, block: Block, type: str, state: str, image: str, direction: str) -> None:
         tag = f'{tag}{Enemy.id}'
 
         # add a falling effect when the enemy spawns
         cx, cy = center
-        cy -= 100
+        if type != 'revilo' and type != 'thavani':
+            cy -= 100
+        else:
+            cx -= 100
         center = (cx, cy)
 
         super().__init__(tag, center, block, direction='down-left')
 
+        # Each enemy has different 'speeds'
+        # by speed, here I mean how quick the enemy
+        # should start jumping to the next block
+        if type == 'red':
+            self.jumpInterval = 1
+        elif type == 'snake':
+            self.jumpInterval = 1.5
+        elif type == 'dalekh' or type == 'chiwarra':
+            # their speeds are equal
+            self.jumpInterval = 0.8
+
         self.id = Enemy.id
         self.type = type
+        self.image = image
+        self.state = state
+        self.direction = direction
+
         self.move = 0
         self.spawnTime = time.time()
         self.moveTime = time.time()
-        self.imageChangeInterval = 0.3
-        self.imageId = imageId
-        self.state = state
         self.inPursue = False
         self.transformation = False
-        self.image = image
-        self.direction = None
+        self.prevDirection = None
 
         Enemy.id += 1
         Enemy.count += 1
-    
-    def increaseImageChangeInterval(self, interval: int):
-        self.imageChangeInterval += interval
+
+    def alienJump(self, nxtBlock, angle, direction):
+        # special jump for aliens that jump on the sides of the block
+        # revilo and thavani
+
+        _, curSideCy = None
+        _, nxtSideCy = None
+        curSide = self.prevDirection.split('-')[1]
+        nxtSide = direction.split('-')[1]
+
+        if curSide == 'left':
+            _, curSideCy = self.block.getLeftSideCenter()
+        else:
+            _, curSideCy = self.block.getRightSideCenter()
+        
+        if nxtSide == 'left':
+            _, nxtSideCy = self.block.getLeftSideCenter()
+        else:
+            _, nxtSideCy = self.block.getRightSideCenter()
+
+        self.nextBlock = nxtBlock
+        self.velocity = (nxtSideCy-curSideCy) // 10
+        self.angle = angle
+        self.direction = direction
+
+class Disk(Actor):
+    id = 0
+    def __int__(self, tag: str, center: tuple, imageId: int, image: str):
+        tag = f'{tag}{Disk.id}'
+        super().__init__(tag, center)
+        self.imageId = imageId
+        self.image = image
+
+        Disk.id += 1
 
 class Star(Actor):
     id = 0

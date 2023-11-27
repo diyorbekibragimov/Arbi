@@ -6,7 +6,7 @@ def calculateDistance(size):
     return size // (2**0.5)
 
 def getDimenstions():
-    rows = 5
+    rows = 6
     blockSize = 50
     radius = (2**0.5) * blockSize // 2
     margin = 25
@@ -27,6 +27,9 @@ def createBoard(app, rows, offsetY):
                 centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             currentNumOfBlocks -= 1
             centerY = offsetY + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
+            # every time you create a block
+            # we need to create an alien block for the special enemies
+            # that move on the sides of the block
             block = Block(tag=f'block', center=(centerX, centerY), 
                           position=(row-1, col), mainColor=app.mainColor, 
                           sideColors=app.sideColors[app.level-1])
@@ -34,7 +37,8 @@ def createBoard(app, rows, offsetY):
         board.append(blocks)
     return board
 
-def calculateCoordinates(app, centerX, centerY):
+def calculateCoordinates(app, block):
+    centerX, centerY = block.getCenter()
     # coordinates of 4 points of the top side of the block
     topX1 = centerX - app.radius
     topX2 = centerX
@@ -58,6 +62,10 @@ def calculateCoordinates(app, centerX, centerY):
     leftY4 = leftY1 + app.blockSize
     leftCoordinates = [leftX1, leftY1, leftX2, leftY2, leftX3, leftY3, leftX4, leftY4]
 
+    # save center coordinates for the left side of the block
+    leftSideCenter = findSideCenter(leftCoordinates, app.blockSize)
+    block.sideCenter = [leftSideCenter]
+
     # coordinates of 4 points of the right side of the block
 
     rightX1 = rightX4 = topX4
@@ -68,6 +76,10 @@ def calculateCoordinates(app, centerX, centerY):
     rightY3 = rightY2 + app.blockSize
     rightY4 = rightY1 + app.blockSize
     rightCoordinates = [rightX1, rightY1, rightX2, rightY2, rightX3, rightY3, rightX4, rightY4]
+
+    rightSideCenter = findSideCenter(rightCoordinates, app.radius)
+    block.sideCenter.append(rightSideCenter)
+
     return (topCoordinates, leftCoordinates, rightCoordinates)
 
 def isPositionLegal(app, row, col):
@@ -79,7 +91,10 @@ def isPositionLegal(app, row, col):
 
 def randomEnemySelection(enemies):
     numberOfEnemies = len(enemies)
+    randomIndex = 0
+
     randomIndex = randint(0, numberOfEnemies-1)
+
     return enemies[randomIndex]
 
 # Source: ChatGPT
@@ -124,3 +139,18 @@ def findBlockByCenter(board, center):
             block = board[row][col]
             if block.getCenter() == center:
                 return block
+            
+def findSideCenter(coordinates: list, blockSize: int):
+    """
+    We have the radius of the block.
+    
+    If we add x1 and the blockSize // 2, then we get
+    the x coordinate of the center.
+
+    If we add y1 and the blockSize // 2, then we get
+    the y coordinate of the center.
+    """
+    x1, y1, x2, y2, x3, y3, x4, y4 = coordinates
+    midX = (x1 + x3) // 2
+    midY = (y1 + y3) // 2
+    return (midX, midY)
