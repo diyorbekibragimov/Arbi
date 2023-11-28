@@ -132,7 +132,7 @@ def onAppStart(app):
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail', 'instructions', 'gameEnd']
-    app.gameState = 'gameEnd'
+    app.gameState = 'start'
     app.paused = False
 
     app.enemyTypes = ['red', 'snake', 'dalekh', 'chiwarra']
