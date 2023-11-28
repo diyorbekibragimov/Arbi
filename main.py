@@ -1,5 +1,5 @@
 from cmu_graphics import *
-from models import (Player, Enemy, Disk)
+from models import (Player, Enemy, Disk, JoystickInstruction)
 from helper_functions import *
 
 from random import randint, randrange
@@ -70,7 +70,7 @@ def onAppStart(app):
     app.starImage = app.interfaceBaseImage + 'star.png'
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
     app.gameOverImage = app.interfaceBaseImage + 'gameOver50.png'
-    app.creditsImage = app.interfaceBaseImage + 'credits-3-15.png'
+    app.inspirationImage = app.interfaceBaseImage + 'inspiration.png'
     app.playBtnHollowImage = app.interfaceBaseImage + 'playButtonHollow.png'
     app.playBtnImage = app.interfaceBaseImage + 'playButton.png'
     app.playBtnTextImageF = app.interfaceBaseImage + 'playFirst.png'
@@ -88,8 +88,40 @@ def onAppStart(app):
     app.bonusPointsImage = app.interfaceBaseImage + 'bonusPoints.png'
     app.gameOverText = app.interfaceBaseImage + 'gameOverText.png'
     app.continueText = app.interfaceBaseImage + 'continueText.png'
+    app.selectInstructionImage = app.interfaceBaseImage + 'instructionSelect.png'
 
-    app.swearImage = app.interfaceBaseImage + 'swear80.png'
+    # End screen
+    app.creator = app.interfaceBaseImage + 'creator2.png'
+    app.creatorClass = app.interfaceBaseImage + 'class.png'
+    app.developedBy = app.interfaceBaseImage + 'developedBy.png'
+    app.returnImage = app.interfaceBaseImage + 'returnHome.png'
+    app.thankImage = app.interfaceBaseImage + 'thankYou.png'
+    app.exitImage = app.interfaceBaseImage + 'exit.png'
+    app.exitImage = app.interfaceBaseImage + 'exit.png'
+
+    app.joystickBase = app.interfaceBaseImage + 'joystick-'
+    app.joystickDirections = ['up', 'right', 'down', 'left']
+    app.joysticksInstruction = createJoysticks(app)
+    # Instruction page
+    app.instructionId = 0
+    app.instructionStartTime = 0
+    offsetY = app.height // 2 - 1.5 * (app.blockSize + 2 * app.radius)
+    offsetX = - 5 * app.labelMargin
+    app.instructionBoard = createBoard(app, 4, offsetY, offsetX)
+    app.instructionPlayerInitDirection = 'top-right'
+    app.instructionPlayerStates = ['idle', 'jump']
+    app.instructionPlayer = Player('instructionPlayer', app.instructionBoard[2][1].getCenter(), app.instructionBoard[2][1],
+                                   app.instructionPlayerInitDirection, app.playerImage, 0,
+                                   app.instructionPlayerStates[0])
+    app.instructionPlayerInterval = 0.5
+    app.instructionPlayerFixedInterval = 1
+    app.instructionJumpWait = 0.1
+    app.maxInstruction = 4
+
+    # Support for the Arcade
+    app.pressStartText = app.interfaceBaseImage + 'arcade-press-start.png'
+
+    app.swearImage = app.interfaceBaseImage + 'swear.png'
     app.stars = generateStars(app, maxCap=5, image=app.starImage)
     app.starAnimation = 3
 
@@ -99,8 +131,8 @@ def onAppStart(app):
     app.btnHeight = 50
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail', 'instructions']
-    app.gameState = 'start'
+    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail', 'instructions', 'gameEnd']
+    app.gameState = 'gameEnd'
     app.paused = False
 
     app.enemyTypes = ['red', 'snake', 'dalekh', 'chiwarra']
@@ -133,9 +165,6 @@ def onAppStart(app):
     app.fixedDiskImageChangeInterval = 0.09
     firstBlockCx, firstBlockCy = app.board[0][0].getCenter()
     app.dropOffCoordinates = (firstBlockCx, firstBlockCy-2*app.blockSize)
-
-    # Instruction page
-    instructionId = 1
 
     app.animationStartTime = None
     app.animationCount = 3
@@ -191,6 +220,10 @@ def redrawAll(app):
     elif app.gameState == app.gameStates[7]:
         # instructions
         drawInstruction(app)
+    elif app.gameState == app.gameStates[8]:
+        # the player has completely ended the game
+        drawEndScreen(app)
+        app.mainTheme.play()
     else:
         app.levelStartMusic.pause()
         drawPyramid(app, app.board)
@@ -212,8 +245,8 @@ def onStep(app):
         
         if app.gameState == app.gameStates[0]:
             if app.btnIsPressed:
-                app.gameState = app.gameStates[1]
-                app.mainTheme.pause()
+                app.gameState = app.gameStates[7]
+                app.instructionStartTime = time.time()
     
         elif app.gameState == app.gameStates[1]:
             elapsedTime = time.time() - app.startLevelInitTime
@@ -376,6 +409,57 @@ def onStep(app):
                     spawnEnemy(app)
                     app.enemiesSpawned = True
                     app.enemySpawnInterval += app.enemySpawnFixedInterval
+        
+        elif app.gameState == app.gameStates[7]:
+            # instructions
+
+            elapsedTime = time.time() - app.instructionStartTime
+            stick = app.joysticksInstruction[app.instructionId]
+
+            # player animation
+            if elapsedTime - app.instructionPlayerInterval > 0:
+                app.instructionPlayerInterval += app.instructionPlayerFixedInterval
+                app.instructionPlayer.state = app.instructionPlayerStates[1]
+                app.instructionPlayer.landedTime = None
+                playerJump(app, app.instructionBoard, app.instructionPlayer, app.instructionPlayerStates, stick.direction)
+
+            if app.instructionPlayer.state == app.instructionPlayerStates[1]:
+                if not app.instructionPlayer.landed:
+                    app.instructionPlayer.handleJump()
+                else:
+                    app.instructionPlayer.landed = False
+
+                    # setting the time the player has landed to the block
+                    if app.instructionPlayer.landedTime is None:
+                        app.instructionPlayer.landedTime = time.time()
+
+                    elapsedTime = time.time() - app.instructionPlayer.landedTime
+
+                    # change the color of the new block
+                    # the player has jumped to
+                    if app.instructionPlayer.block.mainColor != app.targetColor:
+                        app.instructionPlayer.block.mainColor = app.targetColor
+
+                    # change the picture of the player to the original state
+                    app.instructionPlayer.image = app.playerImageBase + f'{app.instructionPlayer.direction}-idle.png'
+
+                    # return to the initial block
+                    if elapsedTime - app.instructionJumpWait > 0:
+                        app.instructionPlayer.block.mainColor = app.mainColor
+                        app.instructionPlayer.block = app.instructionBoard[2][1]
+                        app.instructionPlayer.changeCenter(app.instructionPlayer.block.getCenter())
+                        # the player has fully returned to the block
+                        app.instructionPlayer.state = app.instructionPlayerStates[0]
+
+            # stick animation
+            if elapsedTime - stick.imageChangeInterval > 0:
+                if stick.state == 'idle':
+                    stick.image = app.joystickBase + f'{stick.direction}.png'
+                    stick.state = 'active'
+                elif stick.state == 'active':
+                    stick.image = app.joystickBase + f'idle.png'
+                    stick.state = 'idle'
+                stick.imageChangeInterval += stick.fixedJoystickChangeInterval
 
         if app.enemiesSpawned and app.readyEnemies != app.numberOfEnemiesSpawn:
             enemy = app.enemies[-1]
@@ -457,11 +541,23 @@ def onKeyPress(app, key):
         if app.gameState == app.gameStates[0]:
             app.playButtonState = 'on'
             app.btnIsPressed = True
-            app.startLevelInitTime = time.time()
-            app.levelStartMusic.play()
         elif app.gameState == app.gameStates[2]:
             # the game can be stopped only if it is in progress
             app.paused = not app.paused
+    
+    if key == 'b':
+        if app.gameState == app.gameStates[6]:
+            # end the game
+            app.gameState = app.gameStates[8]
+    
+    if key == 'a':
+        if app.gameState == app.gameStates[6]:
+            continueGame(app)
+
+    if key == 'x':
+        if app.gameState == app.gameStates[7]:
+            app.jump1Music.play()
+            nextInstruction(app)
 
     if not app.paused \
         and app.gameState == app.gameStates[2] \
@@ -533,12 +629,10 @@ def drawEnemies(app):
 # Interface
 def drawInterface(app):
     # Player Label
-    playerLabelText = 'PLAYER'
 
     playerLabelX = app.labelMargin
     playerLabelY = app.labelMargin
 
-    playerLabelWidth = 24 * len(playerLabelText)
     drawImage(app.playerLabelImage, playerLabelX, playerLabelY)
 
     # Score
@@ -550,7 +644,7 @@ def drawInterface(app):
     # Lives counter
     remainingLives = app.player.getLives()
     for life in range(remainingLives):
-        lifeCx = scoreX + app.labelMargin * life
+        lifeCx = scoreX + 1.5 * app.labelMargin * life
         lifeCy = scoreY + 2 * app.labelMargin
         drawImage(app.playerLifeImage, lifeCx, lifeCy)
 
@@ -626,7 +720,20 @@ def drawStartLevel(app):
     drawPlayer(app.startPlayer)
 
 def drawInstruction(app):
-    pass
+    # illustration
+    # Pyramid
+    drawPyramid(app, app.instructionBoard)
+    # Player
+    drawPlayer(app.instructionPlayer)
+
+    stick = app.joysticksInstruction[app.instructionId]
+    drawImage(stick.image, *stick.getCenter(), align='center')
+
+    # Select Text
+    selectHeight = 20
+    selectTxtCx = app.width // 2
+    selectTxtCy = app.height - selectHeight - app.labelMargin
+    drawImage(app.selectInstructionImage, selectTxtCx, selectTxtCy, align='center')
 
 def playerJump(app, board, player, playerStates, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
@@ -692,9 +799,14 @@ def drawnHomeScreen(app):
 
     creditsCx = logoCx
     creditsCy = app.height - app.labelMargin
-    drawImage(app.creditsImage, creditsCx, creditsCy, align='center')
+    drawImage(app.inspirationImage, creditsCx, creditsCy, align='center')
 
-    drawClickButton(app)
+    #buttonHeight = 50
+    #drawClickButton(app)
+
+    pressStartX = app.width // 2
+    pressStartY = app.height // 2 + app.labelMargin
+    drawImage(app.pressStartText, pressStartX, pressStartY, align='center')
 
 # Final
 def drawFinal(app):
@@ -706,11 +818,11 @@ def drawFinal(app):
     gameOverHeight = 29
 
     continueX = cx
-    continueY = app.height // 2 - gameOverHeight
+    continueY = app.height // 2 - gameOverHeight + app.labelMargin
     drawImage(app.continueText, continueX, continueY, align='center')
 
     gameOverX = cx 
-    gameOverY = app.height // 2 + continueHeight
+    gameOverY = app.height // 2 + continueHeight + app.labelMargin
     drawImage(app.gameOverText, gameOverX, gameOverY, align='center')
 
 def drawStars(app):
@@ -725,6 +837,34 @@ def drawClickButton(app):
     elif app.playButtonState == 'on':
         drawImage(app.playBtnImage, app.width//2, app.height//2, align='center')
         drawImage(app.playBtnTextImageS, app.width//2, app.height//2, align='center')
+
+def drawEndScreen(app):
+    # thank you text
+    thankX = app.width // 2
+    thankY = app.height // 4
+    drawImage(app.thankImage, thankX, thankY, align='center')
+
+    # navigation 
+    navigationImageHeight = 20
+
+    returnX = app.width // 2
+    returnY = app.height // 2 - navigationImageHeight
+    drawImage(app.returnImage, returnX, returnY, align='center')
+
+    exitX = app.width // 2
+    exitY = app.height // 2 + navigationImageHeight + app.labelMargin
+    drawImage(app.exitImage, exitX, exitY, align='center')
+
+    # credits
+    creatorHeight = 37
+    creatorClassHeight = 22
+    creatorX = app.width // 2
+    creatorY = app.height - creatorHeight - creatorClassHeight - app.labelMargin
+    drawImage(app.creator, creatorX, creatorY, align='center')
+
+    creatorClassX = app.width // 2
+    creatorClassY = creatorY + creatorHeight
+    drawImage(app.creatorClass, creatorClassX, creatorClassY, align='center')
 
 def spawnEnemy(app):
     # chiwarra and dalekh appear only in third rounds of each level
@@ -1135,7 +1275,7 @@ def nextGame(app):
     remainingLives = app.player.getLives()
     curMaxEnemiesOnBoard = app.maximumEnemiesOnBoard
     curGameAddSpeed = app.gameAddSpeed
-    curMaxGreeEnemyAppear = app.maxGreenEnemyAppear
+    curMaxGreenEnemyAppear = app.maxGreenEnemyAppear
     curEnemySpawnFixedInterval = app.enemySpawnFixedInterval
 
     onAppStart(app)
@@ -1170,7 +1310,7 @@ def nextGame(app):
         app.level = currentLevel + 1
 
         app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
-        app.maxGreenEnemyAppear = curMaxGreeEnemyAppear + 1
+        app.maxGreenEnemyAppear = curMaxGreenEnemyAppear + 1
 
         app.enemySpawnFixedInterval -= (app.level - 1)
     else:
@@ -1180,14 +1320,121 @@ def nextGame(app):
     app.player.updateLives(remainingLives)
     app.player.updateScore(prevScore + app.completionBonus)
 
+def continueGame(app):
+    # The player has no lives left
+    # but he has the option to continue playing the game
+    # that will keep the difficulty level
+    # the only thing that changes is that 
+    # the player gets his lives back
+    currentRound = app.round
+    currentLevel = app.level
+    currentRows = app.rows
+    currentScore = app.player.getScore()
+    curMaxEnemiesOnBoard = app.maximumEnemiesOnBoard
+    curGameAddSpeed = app.gameAddSpeed
+    curMaxGreenEnemyAppear = app.maxGreenEnemyAppear
+    curEnemySpawnFixedInterval = app.enemySpawnFixedInterval
+
+    onAppStart(app)
+
+    app.round = currentRound
+    app.level = currentLevel
+    app.rows = currentRows
+    app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
+    app.rawBlocks = countBlocks(app.board)
+    app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
+    app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard
+    app.enemySpawnFixedInterval = curEnemySpawnFixedInterval
+    app.gameAddSpeed = curGameAddSpeed
+    app.maxGreenEnemyAppear = curMaxGreenEnemyAppear
+
+    app.gameState = app.gameStates[2]
+    app.gameStartTime = time.time()
+
+    app.player.updateScore(currentScore)
+
+def nextInstruction(app):
+    if app.instructionId < app.maxInstruction - 1:
+        app.instructionId += 1
+        app.instructionStartTime = time.time()
+        app.instructionPlayerInterval = 0.5
+    else:
+        # the game will start
+        # stop the music
+        app.mainTheme.pause()
+        # change the state of the  game
+        app.gameState = app.gameStates[1]
+        app.startLevelInitTime = time.time()
+        app.levelStartMusic.play()
+
+def createJoysticks(app):
+    joysticks = list()
+    joystickWidth = 128
+    cx = app.width - joystickWidth // 2 - 4 * app.labelMargin
+    cy = app.height // 2
+    state = 'idle'
+    for direction in app.joystickDirections:
+        image = app.joystickBase + f'{state}.png'
+        stick = JoystickInstruction('joystick', (cx, cy), image, direction, state, 1)
+        joysticks.append(stick)
+    return joysticks
+
 # Arcade Support
 def onJoyPress(app, button, joystick):
     if button == '9':
         # Start
-        pass
+        if app.gameState == app.gameStates[0]:
+            app.playButtonState = 'on'
+            app.btnIsPressed = True
+            app.startLevelInitTime = time.time()
+            app.levelStartMusic.play()
     if button == '5':
         # P1
         sys.exit(0)
+
+    if button == '1':
+        # A: To continue the game when the player died
+        continueGame(app)
+
+    if button == '0':
+        # B: To end the game
+        app.gameState = app.gameStates[8]
+
+def onDigitalJoyAxis(app, results, joystick):
+    """
+    if key == 'down':
+        direction += 'down-left'
+    elif key == 'up':
+        direction += 'top-right'
+    elif key == 'left':
+        direction += 'top-left'
+    elif key == 'right':
+        direction += 'down-right'
+    """
+    key = ''
+    if (1, -1) in results:
+        # top-right
+        key = 'up'
+    elif (1, 1) in results:
+        # down-left
+        key = 'down'
+    
+    if (0, -1) in results:
+        # top-left
+        key = 'left'
+        
+    elif (0, 1) in results:
+        # down-right
+        key = 'right'
+
+    if not app.paused \
+        and app.gameState == app.gameStates[2] \
+        and app.player.state != app.playerStates[1] \
+        and app.player.state != app.playerStates[3] \
+        and app.player.state != app.playerStates[4]:
+        if key in app.allowedMovementKeys:
+            # the player is jumping
+            playerJump(app, app.board, app.player, app.playerStates, key)
 
 def playGame():
     runApp(width=800, height=600)

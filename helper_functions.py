@@ -12,7 +12,7 @@ def getDimenstions():
     margin = 25
     return (rows, blockSize, radius, margin)
 
-def createBoard(app, rows, offsetY):
+def createBoard(app, rows, offsetY, offsetX=0):
     board = []
     for row in range(1, rows+1):
         numOfBlocks = row
@@ -22,9 +22,9 @@ def createBoard(app, rows, offsetY):
         for col in range(numOfBlocks):
             centerX = 0
             if row % 2 != 0:
-                centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
+                centerX += offsetX + app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             else:
-                centerX += app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
+                centerX += offsetX + app.width//2 + app.radius * (col - currentNumOfBlocks + 1)
             currentNumOfBlocks -= 1
             centerY = offsetY + app.margin + (app.radius // 2) * row + app.blockSize * (row - 1)
             # every time you create a block

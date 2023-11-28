@@ -136,6 +136,7 @@ class Player(MovingActor):
         self.disk = None
         self.landed = False
         self.dropOffVelocity = 0
+        self.landedTime = None
     
     def getScore(self):
         return self.score
@@ -291,6 +292,20 @@ class Disk(Actor):
         self.diagonalVelocityY = 0
 
         Disk.id += 1
+
+class JoystickInstruction(Actor):
+    id = 0
+    def __init__(self, tag: str, center: tuple, image: str, direction: str, state: str, imageId: int):
+        tag = f'{tag}{JoystickInstruction.id}'
+        JoystickInstruction.id += 1
+        super().__init__(tag, center)
+        self.id = JoystickInstruction.id
+        self.image = image
+        self.imageChangeInterval = 0.3
+        self.direction = direction
+        self.imageId = imageId
+        self.state = state
+        self.fixedJoystickChangeInterval = 0.3
 
 class Star(Actor):
     id = 0
