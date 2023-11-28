@@ -1442,5 +1442,4 @@ def playGame():
 def main():
     playGame()
 
-if __name__ == "__main__":
-    main()
+main()
