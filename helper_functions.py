@@ -1,11 +1,11 @@
 import math
 from random import randint
-from models import Block, Star
+from models import Block, Disk
 
 def calculateDistance(size):
     return size // (2**0.5)
 
-def getDimenstions():
+def getDimensions():
     rows = 6
     blockSize = 45
     radius = (2**0.5) * blockSize // 2
@@ -109,26 +109,6 @@ def countBlocks(pyramid: list):
         return 1
     else:
         return len(pyramid) + countBlocks(pyramid[1:])
-    
-# def getBonusData(app):
-#     bonuses = {}
-#     for l in range(app.levels):
-#         levelName = f'Level{l+1}'
-#         for _ in range(3):
-#             bonuses[levelName] = bonuses.get(levelName, [])
-#             bonuses[levelName].append(app.completionBonus)
-#             if app.completionBonus < app.maxBonus:
-#                 app.completionBonus += app.addBonus
-#     return bonuses
-
-def generateStars(app, maxCap: int, image: str):
-    stars = []
-    for _ in range(maxCap):
-        starCx = randint(app.labelMargin, app.width - 2 * app.labelMargin)
-        starCy = randint(app.labelMargin, app.height - 2 * app.labelMargin)
-        star = Star(f'star', (starCx, starCy), image)
-        stars.append(star)
-    return stars
 
 def calculateDistance(x1, x2, y1, y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
@@ -154,3 +134,34 @@ def findSideCenter(coordinates: list, blockSize: int):
     midX = (x1 + x3) // 2
     midY = (y1 + y3) // 2
     return (midX, midY)
+
+def createDisks(board, blockRadius, diskImageBase, number=2):
+    leftBlock = board[-2][0]
+    rightBlock = board[-2][-1]
+    
+    leftBlockCx, leftBlockCy = leftBlock.getCenter()
+    rightBlockCx, rightBlockCy = rightBlock.getCenter()
+
+    leftDiskCx = leftBlockCx - blockRadius
+    leftDiskCy = leftBlockCy - blockRadius
+
+    rightDiskCx = rightBlockCx + blockRadius
+    rightDiskCy = rightBlockCy - blockRadius
+
+    centers = [(leftDiskCx, leftDiskCy), (rightDiskCx, rightDiskCy)]
+    
+    disks = list()
+    for i in range(number):
+        diskImage = diskImageBase + f'disk1.png'
+        row = len(board) - 2
+        col = 0 if i == 0 else len(board[row]) - 1
+        blockUp = None
+        if col == 0:
+            blockUp = board[row-1][0]
+        else:
+            blockUp = board[row-1][row-1]
+        disk = Disk('disk', centers[i], imageId=1, image=diskImage, \
+                    position=(row, col), blockUp=blockUp)
+        disks.append(disk)
+
+    return disks

@@ -1,154 +1,111 @@
 from cmu_graphics import *
-from models import (Player, Enemy, Disk, JoystickInstruction)
-from helper_functions import *
-
 from random import randint, randrange
-import time, pathlib, copy, sys
+
+import time, copy, sys
 import joystick
 
-# TODO: continue watching https://www.youtube.com/watch?v=M6e3_8LHc7A
-# to learn how to work with sprites
+from helper_functions import *
+from drawingFunctions import *
+from loadImages import *
+from loadMusic import *
 
-# TODO: then watch https://www.youtube.com/watch?v=nXOVcOBqFwM
-# to learn how to animate sprites
-
-################
+from models import (Player, Enemy, JoystickInstruction)
+from gameManagement import (loadGameStates, loadMainColors, 
+                        loadSideColors,
+                        loadJoystickDirections, loadPlayerStates,
+                        loadAllowedMovements, loadTargetColors,
+                        loadEnemyTypes, loadEnemyStates)
 
 def onAppStart(app):
+    # Basic Configurations
     app.background = 'black'
+    app.paused = False
+    app.rows, app.blockSize, app.radius, app.margin = getDimensions()
+    app.wrapperWidth = (app.rows + 1) * app.blockSize
+    app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
+    app.labelMargin = 30
+    app.gravity = 0.9
+    app.jumpAngle = 45
 
-    # Global
+    # Levels and Rounds
     app.levels = 3
     app.level = 1
     app.rounds = 3
     app.round = 1
 
-    app.labelMargin = 30
-
     # Initial Completion Bonus
     app.completionBonus = 250
-    app.maxBonus = 5000
-    # app.bonuses = getBonusData(app)
+
     # Bonus Animation
     app.bonusAnimationStart = None
     app.bonusAnimationDuration = 5
 
-    app.mainColors = [
-        ['royalBlue', 'salmon', 'limeGreen'],
-        ['gainsboro', 'lightSlateGray', 'lightCyan'],
-        ['orange', 'mistyRose', 'springGreen']
-    ]
-    
+    # Colors
+    app.mainColors = loadMainColors()
     app.mainColor = app.mainColors[app.level-1][app.round-1]
-    app.sideColors = [
-        [['cadetBlue', 'slateGray'], ['darkGray', 'dimGray'], ['black', 'black']],
-        [['limeGreen', 'mediumSeaGreen'], ['darkOrchid', 'slateBlue'], ['black', 'black']],
-        [['peru', 'saddleBrown'], ['linen', 'antiqueWhite'], ['black', 'black']]
-    ]
-    app.targetColors = ['yellow', 'dodgerBlue', 'steelBlue']
+    app.sideColors = loadSideColors()
+    app.targetColors = loadTargetColors()
     app.targetColor = app.targetColors[app.level-1]
-
-    app.rows, app.blockSize, app.radius, app.margin = getDimenstions()
-
-    app.wrapperWidth = (app.rows + 1) * app.blockSize
-    app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
-    app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
+    
+    # Main Game Board
+    app.board = createBoard(app, app.rows, app.wrapperHeight // 4, 
+                        sideColors=app.sideColors[app.level-1][app.round-1])
     app.rawBlocks = countBlocks(app.board)
 
-    # player starts on the highest col of the pyramid
-    app.playerImageBase = 'media/spritesheet/player-'
+    # Load the player data
     app.playerLives = 3
     app.playerInitDirection = 'down-right'
-    app.playerStates = ['idle', 'jump', 'disk', 'fly', 'dropoff']
-    app.playerImage = app.playerImageBase + f'{app.playerInitDirection}-idle.png'
+    app.playerStates = loadPlayerStates()
+    app.playerImage = PLAYER_BASE_IMAGE + f'{app.playerInitDirection}-idle.png'
     app.playerWidth = 45
     app.playerHeight = 45
-    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0], \
-                        app.playerInitDirection, app.playerImage, app.playerLives, \
-                        app.playerStates[0])
+    app.player = Player('player', app.board[0][0].getCenter(), app.board[0][0],
+                        app.playerInitDirection, app.playerImage, 
+                        app.playerLives, app.playerStates[0])
     app.playerNumber = 1
 
-    # Image sources
-    app.labelImageWidth = 93
-    app.interfaceBaseImage = 'media/interface/' 
-    # small image
-    # NOTE: We can make the game resizable
-    # if we do, we have to change the sizes of some pictures
-    # such as logo
-    app.starImage = app.interfaceBaseImage + 'star.png'
-    app.logoImage = app.interfaceBaseImage + 'logo50.png'
-    app.gameOverImage = app.interfaceBaseImage + 'gameOver50.png'
-    app.inspirationImage = app.interfaceBaseImage + 'inspirationText.png'
-    app.playBtnHollowImage = app.interfaceBaseImage + 'playButtonHollow.png'
-    app.playBtnImage = app.interfaceBaseImage + 'playButton.png'
-    app.playBtnTextImageF = app.interfaceBaseImage + 'playFirst.png'
-    app.playBtnTextImageS = app.interfaceBaseImage + 'playSecond.png'
-    app.playerLabelImage = app.interfaceBaseImage + 'player.png'
-    app.playerLifeImage = app.interfaceBaseImage + 'player-small.png'
-    app.startLevelImage = app.interfaceBaseImage + 'startLevel.png'
-    app.startRound = app.interfaceBaseImage + 'startRound.png'
-    app.startLevelTxt = app.interfaceBaseImage + 'startLevel'
-    app.startRoundTxt = app.interfaceBaseImage + 'startRound'
-    app.levelLabelImage = app.interfaceBaseImage + 'level.png'
-    app.roundLabelImage = app.interfaceBaseImage + 'round.png'    
-    app.bonusTextImage = app.interfaceBaseImage + 'bonusText.png'
-    app.bonusScoreImage = app.interfaceBaseImage + 'AddScore250.png'
-    app.bonusPointsImage = app.interfaceBaseImage + 'bonusPoints.png'
-    app.gameOverText = app.interfaceBaseImage + 'gameOverText.png'
-    app.continueText = app.interfaceBaseImage + 'continueText.png'
-    app.selectInstructionImage = app.interfaceBaseImage + 'instructionSelect.png'
-    app.yourScoreImage = app.interfaceBaseImage + 'yourScore.png'
-    app.pressStartText = app.interfaceBaseImage + 'arcade-press-start.png'
-
-    # End screen
-    app.creator = app.interfaceBaseImage + 'creator2.png'
-    app.creatorClass = app.interfaceBaseImage + 'class.png'
-    app.developedBy = app.interfaceBaseImage + 'developedBy.png'
-    app.returnImage = app.interfaceBaseImage + 'returnHome.png'
-    app.thankImage = app.interfaceBaseImage + 'thankYou.png'
-    app.exitImage = app.interfaceBaseImage + 'exit.png'
-    app.exitImage = app.interfaceBaseImage + 'exit.png'
-
-    app.joystickBase = app.interfaceBaseImage + 'joystick-'
-    app.joystickDirections = ['up', 'right', 'down', 'left']
+    app.joystickDirections = loadJoystickDirections()
     app.joysticksInstruction = createJoysticks(app)
+    
     # Instruction page
     app.instructionId = 0
     app.instructionStartTime = 0
     offsetY = app.height // 2 - 1.5 * (app.blockSize + 2 * app.radius)
     offsetX = - 5 * app.labelMargin
-    app.instructionBoard = createBoard(app, 4, offsetY, offsetX, sideColors=app.sideColors[app.level-1][app.round-1])
+    app.instructionBoard = createBoard(app, 4, offsetY, offsetX, 
+                        sideColors=app.sideColors[app.level-1][app.round-1])
     app.instructionPlayerInitDirection = 'top-right'
     app.instructionPlayerStates = ['idle', 'jump']
-    app.instructionPlayer = Player('instructionPlayer', app.instructionBoard[2][1].getCenter(), app.instructionBoard[2][1],
-                                   app.instructionPlayerInitDirection, app.playerImage, 0,
+    app.instructionPlayer = Player('instructionPlayer', 
+                                   app.instructionBoard[2][1].getCenter(), 
+                                   app.instructionBoard[2][1],
+                                   app.instructionPlayerInitDirection, 
+                                   app.playerImage, 0,
                                    app.instructionPlayerStates[0])
     app.instructionPlayerInterval = 0.5
     app.instructionPlayerFixedInterval = 1
     app.instructionJumpWait = 0.1
     app.maxInstruction = 4
 
-    app.swearImage = app.interfaceBaseImage + 'swear.png'
     app.playButtonState = 'off'
     app.btnIsPressed = False
     app.btnWidth = 150
     app.btnHeight = 50
 
-    app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'gameEnd', 'fail', 'instructions']
+    app.allowedMovementKeys = loadAllowedMovements()
+    app.gameStates = loadGameStates()
     app.gameState = 'start'
-    app.paused = False
 
-    app.enemyTypes = ['red', 'snake', 'dalekh', 'chiwarra']
-    app.enemyImageBase = 'media/spritesheet/enemies/'
+    # ENEMIES
+    app.enemyTypes = loadEnemyTypes()
     app.enemies = list()
     app.enemySpawnInterval = 2
-    app.enemyStates = ['idle', 'jump']
+    app.enemyStates = loadEnemyStates()
     app.enemiesSpawned = False
     app.readyEnemies = 0
     app.gameStartTime = None
 
-    # level management
+    # LEVEL MANAGEMENT
     app.maximumEnemiesOnBoard = 4
     app.minEnemySpawnInterval = 1
     app.enemySpawnFixedInterval = 4
@@ -162,9 +119,9 @@ def onAppStart(app):
     app.greenEnemyAppear = 0
     app.maxGreenEnemyAppear = 2
 
-    # disks
-    app.diskImageBase = 'media/spritesheet/disks/'
-    app.disks = createDisks(app.board, app.radius, app.diskImageBase)
+    app.labelImageWidth = 93
+    # ROTATING DISKS
+    app.disks = createDisks(app.board, app.radius, DISK_BASE_IMAGE)
     app.diskImageChangeInterval = 0.09
     app.fixedDiskImageChangeInterval = 0.09
     firstBlockCx, firstBlockCy = app.board[0][0].getCenter()
@@ -178,14 +135,11 @@ def onAppStart(app):
     app.playerDeathTime = None
     app.playerRevivalTime = 3
 
-    app.gravity = 0.9
-    app.jumpAngle = 45
-
     # Start level transition
     app.startLevelInitTime = None
     app.startLevelDuration = 3.5
 
-    # Start Level Player Animation
+    # Start Level Player
     app.startPlayerCx = app.width // 2
     app.startPlayerCy = app.height - 10 * app.labelMargin
     offsetY = app.startPlayerCy
@@ -198,19 +152,6 @@ def onAppStart(app):
     app.startPlayerFixedInterval = 1
     app.startPlayerJumpCount = 0
 
-    # Music Effects
-    # Cite: Professor Eduardo [Piazza]
-    cntPath = pathlib.Path(__file__).parent.resolve()
-    app.jump1Music = Sound(f'file://{cntPath}/media/music/jump1.mp3')
-    app.swear = Sound(f'file://{cntPath}/media/music/swear.mp3')
-    app.victoryMusic = Sound(f'file://{cntPath}/media/music/victory.mp3')
-    app.mainTheme = Sound(f'file://{cntPath}/media/music/mainTheme.mp3')
-    app.redEnemyJump = Sound(f'file://{cntPath}/media/music/redEnemyJump.mp3')
-    app.purpleEnemyJump = Sound(f'file://{cntPath}/media/music/snakeJump.mp3')
-    app.snakeJump = Sound(f'file://{cntPath}/media/music/grownSnakeJump.mp3')
-    app.levelStartMusic = Sound(f'file://{cntPath}/media/music/levelStart.mp3')
-    app.liftMusic = Sound(f'file://{cntPath}/media/music/lift.mp3')
-
 def redrawAll(app):
     if app.gameState == app.gameStates[0]:
         # the home page
@@ -220,7 +161,7 @@ def redrawAll(app):
     elif app.gameState == app.gameStates[5]:
         # the player has completely ended the game
         drawEndScreen(app)
-        app.mainTheme.play()
+        mainTheme.play()
     elif app.gameState == app.gameStates[6]:
         # the player has either lost or won the game
         drawFinal(app)
@@ -228,7 +169,7 @@ def redrawAll(app):
         # instructions
         drawInstruction(app)
     else:
-        app.levelStartMusic.pause()
+        levelStartMusic.pause()
         drawPyramid(app, app.board)
         drawEnemies(app)
         drawDisks(app)
@@ -282,7 +223,7 @@ def onStep(app):
                         app.startPlayer.block.mainColor = app.targetColor
 
                     # change the picture of the player to the original state
-                    app.startPlayer.image = app.playerImageBase + f'{app.startPlayer.direction}-idle.png'
+                    app.startPlayer.image = PLAYER_BASE_IMAGE + f'{app.startPlayer.direction}-idle.png'
 
             # level transition end time
             if elapsedTime - app.startLevelDuration > 0:
@@ -302,7 +243,7 @@ def onStep(app):
                     app.player.state = app.playerStates[0]
 
                     # play jump sound effect
-                    app.jump1Music.play()
+                    jump1Music.play()
 
                     # change the color of the new block
                     # the player has jumped to
@@ -311,7 +252,7 @@ def onStep(app):
                         app.rawBlocks -= 1
 
                     # change the picture of the player to the original state
-                    app.player.image = app.playerImageBase + f'{app.player.direction}-idle.png'
+                    app.player.image = PLAYER_BASE_IMAGE + f'{app.player.direction}-idle.png'
             elif app.player.state == app.playerStates[2]:
                 # if the player is jumping to the disk
                 if not app.player.landed:
@@ -324,10 +265,10 @@ def onStep(app):
                     app.player.state = app.playerStates[3]
 
                     # change the picture of the player to the original state
-                    app.player.image = app.playerImageBase + f'{app.player.direction}-idle.png'
+                    app.player.image = PLAYER_BASE_IMAGE + f'{app.player.direction}-idle.png'
 
                     # play the lift music
-                    app.liftMusic.play()
+                    liftMusic.play()
 
             elif app.player.state == app.playerStates[3]:
                 # start changing the coordinates of the player and the disk
@@ -445,7 +386,7 @@ def onStep(app):
 
                     # change the picture of the player to the original state
                     try:
-                        app.instructionPlayer.image = app.playerImageBase + f'{app.instructionPlayer.direction}-idle.png'
+                        app.instructionPlayer.image = PLAYER_BASE_IMAGE + f'{app.instructionPlayer.direction}-idle.png'
                     except:
                         print("Failed to change the picture.")
 
@@ -461,13 +402,14 @@ def onStep(app):
             if elapsedTime - stick.imageChangeInterval > 0:
                 if stick.state == 'idle':
                     try:
-                        stick.image = app.joystickBase + f'{stick.direction}.png'
+                        stick.image = JOYSTICK_BASE_IMAGE + f'{stick.direction}.png'
                     except:
                         print("Failed to change the picture.")
                     stick.state = 'active'
                 elif stick.state == 'active':
-                    stick.image = app.joystickBase + f'idle.png'
+                    stick.image = JOYSTICK_BASE_IMAGE + f'idle.png'
                     stick.state = 'idle'
+
                 stick.imageChangeInterval += stick.fixedJoystickChangeInterval
 
         if app.enemiesSpawned and app.readyEnemies != app.numberOfEnemiesSpawn:
@@ -556,6 +498,7 @@ def onKeyPress(app, key):
         elif app.gameState == app.gameStates[2]:
             # the game can be stopped only if it is in progress
             app.paused = not app.paused
+            app.gameStartTime = time.time()
     
     if key == 'b':
         if app.gameState == app.gameStates[6]:
@@ -568,7 +511,7 @@ def onKeyPress(app, key):
 
     if key == 'x':
         if app.gameState == app.gameStates[7]:
-            app.jump1Music.play()
+            jump1Music.play()
             nextInstruction(app)
 
     if key == 's':
@@ -604,152 +547,6 @@ def onMousePress(app, mouseX, mouseY):
     if app.gameState == app.gameStates[0]:
         if app.playButtonState == 'on':
             app.btnIsPressed = True
-            if app.startLevelInitTime is None:
-                app.startLevelInitTime = time.time()
-            app.levelStartMusic.play()
-
-# Pyramid
-def drawPyramid(app, board):
-    for row in range(len(board)):
-        drawRow(app, board, row)
-
-def drawRow(app, board, row):
-    nRow = board[row]
-    for block in nRow:
-        top, left, right = calculateCoordinates(app, block)
-        drawBlock(top, left, right, block.mainColor, block.sideColors)
-
-def drawBlock(topCoordinates, leftSideCoordinates, rightSideCoordinates, mainColor, sideColors):
-    # drawing top
-    drawPolygon(*topCoordinates, fill=mainColor, border='black', borderWidth=1)
-    drawPolygon(*leftSideCoordinates, fill=sideColors[0], border='black', borderWidth = 1)
-    drawPolygon(*rightSideCoordinates, fill=sideColors[1], border='black', borderWidth=1)
-
-# Disks
-def drawDisks(app):
-    for disk in app.disks:
-        cx, cy = disk.getCenter()
-        drawImage(disk.image, cx, cy, align='center')
-
-# Player
-def drawPlayer(player):
-    playerX, playerY = player.getCenter()
-    drawImage(player.image, playerX, playerY, align='bottom')
-
-# Enemies
-def drawEnemies(app):
-    for enemy in app.enemies:
-        enemyX, enemyY = enemy.getCenter()
-        drawImage(enemy.image, enemyX, enemyY, align='bottom')
-
-# Interface
-def drawInterface(app):
-    # Player Label
-
-    playerLabelX = app.labelMargin
-    playerLabelY = app.labelMargin
-
-    drawImage(app.playerLabelImage, playerLabelX, playerLabelY)
-
-    # Score
-    scoreX = playerLabelX
-    scoreY = playerLabelY + 2 * app.labelMargin
-    scoreImage = app.interfaceBaseImage + f'Score{app.player.score}.png'
-    drawImage(scoreImage, scoreX, scoreY)
-
-    # Lives counter
-    remainingLives = app.player.getLives()
-    for life in range(remainingLives):
-        lifeCx = scoreX + 1.5 * app.labelMargin * life
-        lifeCy = scoreY + 2 * app.labelMargin
-        drawImage(app.playerLifeImage, lifeCx, lifeCy)
-
-    # playerNumberX = playerLabelX + playerLabelWidth - app.labelMargin
-    # playerNumberY = playerLabelY
-    # # background for a number
-    # drawRect(playerNumberX, playerNumberY, 20, 25, fill='red', align='center')
-    # drawLabel(app.playerNumber, playerNumberX, playerNumberY, fill=playerNumberColor, bold=True, size=24)
-
-    # # Target 
-    # targetLabelX = 
-    # targetLabelY = 
-
-    # Level
-    levelX = app.width - 5 * app.labelMargin
-    levelY = app.labelMargin
-    levelWidth = 93
-    drawImage(app.levelLabelImage, levelX, levelY)
-
-    # Level Number
-    numberMargin = 15
-    levelNumberX = levelX + app.labelImageWidth + numberMargin 
-    levelNumberY = levelY
-    drawImage(app.interfaceBaseImage+f'{app.level}.png', levelNumberX, levelNumberY)
-
-    # Round
-    roundX = levelX
-    roundY = levelY + 40
-    drawImage(app.roundLabelImage, roundX, roundY)
-
-    # RoundNumber
-    roundNumberX = roundX + app.labelImageWidth + numberMargin 
-    roundNumberY = roundY
-    drawImage(app.interfaceBaseImage+f'{app.round}.png', roundNumberX, roundNumberY)
-
-def drawSwear(app):
-    playerCx, playerCy = app.player.getCenter()
-    imageCx = playerCx - 0.8 * app.playerWidth
-    imageCy = playerCy - 2.5 * app.playerHeight
-    drawImage(app.swearImage, imageCx, imageCy)
-
-def drawStartLevel(app):
-    # Level
-    levelWidth = 201
-    levelHeight = 37
-    levelTxtWidth = 37
-    roundWidth = 127
-    roundHeight = 20
-    roundTxtWidth = 14
-
-    levelCx = app.width // 2 - levelTxtWidth
-    levelCy = app.height // 3 - roundHeight
-    drawImage(app.startLevelImage, levelCx, levelCy, align='center')
-
-    txtCx = levelCx + levelWidth // 2 + app.labelMargin
-    txtCy = levelCy
-    startLevelTxt = app.startLevelTxt + f'{app.level}.png'
-    drawImage(startLevelTxt, txtCx, txtCy, align='center')
-
-    # Round
-    roundCx = app.width // 2 - roundTxtWidth
-    roundCy = levelCy + levelHeight
-    drawImage(app.startRound, roundCx, roundCy, align='center')
-
-    roundTxtCx = roundCx + roundWidth // 2 + app.labelMargin
-    roundTxtCy = roundCy
-    startRoundTxt = app.startRoundTxt + f'{app.round}.png'
-    drawImage(startRoundTxt, roundTxtCx, roundTxtCy, align='center')
-
-    # Pyramid
-    drawPyramid(app, app.startBoard)
-    # Player
-    drawPlayer(app.startPlayer)
-
-def drawInstruction(app):
-    # illustration
-    # Pyramid
-    drawPyramid(app, app.instructionBoard)
-    # Player
-    drawPlayer(app.instructionPlayer)
-
-    stick = app.joysticksInstruction[app.instructionId]
-    drawImage(stick.image, *stick.getCenter(), align='center')
-
-    # Select Text
-    selectHeight = 20
-    selectTxtCx = app.width // 2
-    selectTxtCy = app.height - selectHeight - app.labelMargin
-    drawImage(app.selectInstructionImage, selectTxtCx, selectTxtCy, align='center')
 
 def playerJump(app, board, player, playerStates, key):
     # first X coordinate of the player should reach the X0 coordinate of the parabola
@@ -777,7 +574,7 @@ def playerJump(app, board, player, playerStates, key):
             player.jump(nxtBlock, app.jumpAngle, direction) # sets the next jumping block of the player
             player.state = playerStates[1]
             # change the picture of the player
-            player.image = app.playerImageBase + f'{direction}-jump.png'
+            player.image = PLAYER_BASE_IMAGE + f'{direction}-jump.png'
         except:
             print("Failed to jump")
     else:
@@ -789,7 +586,7 @@ def playerJump(app, board, player, playerStates, key):
                 # disk is present
                 player.jumpDisk(disk, 45, direction)
                 player.state = playerStates[2] # flying state
-                player.image = app.playerImageBase + f'{direction}-jump.png'
+                player.image = PLAYER_BASE_IMAGE + f'{direction}-jump.png'
 
                 # setting the velocity of the disk
                 _, blockUpCy = disk.blockUp.getCenter()
@@ -802,99 +599,6 @@ def playerJump(app, board, player, playerStates, key):
 
         # the player will fall out of the pyramid
         print("Falling")
-
-def drawnHomeScreen(app):
-    # background music
-    app.mainTheme.play(loop=True)
-
-    # drawStars(app)
-
-    logoCx = app.width // 2 
-    logoCy = app.height // 2 - 3 * app.labelMargin
-    drawImage(app.logoImage, logoCx, logoCy, align='center')
-
-    creditsCx = logoCx
-    creditsCy = app.height - app.labelMargin
-    drawImage(app.inspirationImage, creditsCx, creditsCy, align='center')
-
-    #buttonHeight = 50
-    #drawClickButton(app)
-
-    pressStartX = app.width // 2
-    pressStartY = app.height // 2 + app.labelMargin
-    drawImage(app.pressStartText, pressStartX, pressStartY, align='center')
-
-def drawFinal(app):
-    cx, cy = app.width // 2, app.height // 3
-    drawImage(app.gameOverImage, cx, cy, align='center')
-
-    # score
-    scoreHeight = 29
-    scoreWidth = 200
-    scoreX = app.width // 2 
-    scoreY = cy + 2 * app.labelMargin
-    drawImage(app.yourScoreImage, scoreX, scoreY, align='center')
-
-    scoreX = scoreX + scoreWidth // 2 + app.labelMargin
-    scoreY = scoreY
-    scoreImage = app.interfaceBaseImage + f'Score{app.player.score}.png'
-    drawImage(scoreImage, scoreX, scoreY, align='center')
-
-    # navigation
-    continueX = cx
-    continueY = scoreY + scoreHeight + app.labelMargin
-    drawImage(app.continueText, continueX, continueY, align='center')
-
-    gameOverX = cx 
-    gameOverY = continueY + 2 * app.labelMargin
-    drawImage(app.gameOverText, gameOverX, gameOverY, align='center')
-
-def drawClickButton(app):
-    if app.playButtonState == 'off':
-        drawImage(app.playBtnHollowImage, app.width//2, app.height//2, align='center')
-        drawImage(app.playBtnTextImageF, app.width//2, app.height//2, align='center')
-    elif app.playButtonState == 'on':
-        drawImage(app.playBtnImage, app.width//2, app.height//2, align='center')
-        drawImage(app.playBtnTextImageS, app.width//2, app.height//2, align='center')
-
-def drawEndScreen(app):
-    # thank you text
-    thankX = app.width // 2
-    thankY = app.height // 4
-    drawImage(app.thankImage, thankX, thankY, align='center')
-    
-    scoreHeight = 29
-    scoreWidth = 200
-    scoreX = app.width // 2 
-    scoreY = thankY + 2 * app.labelMargin
-    drawImage(app.yourScoreImage, scoreX, scoreY, align='center')
-
-    scoreX = scoreX + scoreWidth // 2 + app.labelMargin
-    scoreY = scoreY
-    scoreImage = app.interfaceBaseImage + f'Score{app.player.score}.png'
-    drawImage(scoreImage, scoreX, scoreY, align='center')
-
-    # navigation 
-    navigationImageHeight = 20
-
-    returnX = app.width // 2
-    returnY = app.height // 2 - navigationImageHeight
-    drawImage(app.returnImage, returnX, returnY, align='center')
-
-    exitX = app.width // 2
-    exitY = app.height // 2 + navigationImageHeight + app.labelMargin
-    drawImage(app.exitImage, exitX, exitY, align='center')
-
-    # credits
-    creatorHeight = 37
-    creatorClassHeight = 22
-    creatorX = app.width // 2
-    creatorY = app.height - creatorHeight - creatorClassHeight - app.labelMargin
-    drawImage(app.creator, creatorX, creatorY, align='center')
-
-    creatorClassX = app.width // 2
-    creatorClassY = creatorY + creatorHeight
-    drawImage(app.creatorClass, creatorClassX, creatorClassY, align='center')
 
 def spawnEnemy(app):
     # chiwarra and dalekh appear only in third rounds of each level
@@ -962,11 +666,11 @@ def spawnEnemy(app):
     if enemyType == app.enemyTypes[0] \
         or enemyType == app.enemyTypes[1]:
         # simple enemies
-        enemyImage = app.enemyImageBase + f'{enemyType}-idle.png'
+        enemyImage = ENEMY_BASE_IMAGE + f'{enemyType}-idle.png'
     else:
         # special enemies: revilo, thavani, dalekh, and chiwarra
         direction = 'down-right'
-        enemyImage = app.enemyImageBase + f'{enemyType}-{direction}-idle.png'
+        enemyImage = ENEMY_BASE_IMAGE + f'{enemyType}-{direction}-idle.png'
 
     # UNDER DEVELOPMENT
     # if enemyType == app.enemyTypes[2] \
@@ -1016,12 +720,12 @@ def enemyMove(app, enemy: Enemy):
     if enemy.state == app.enemyStates[0]:
         
         if enemy.type == app.enemyTypes[0]:
-            app.redEnemyJump.play()
+            redEnemyJump.play()
         elif enemy.type == app.enemyTypes[1]:
             if enemy.transformation:
-                app.snakeJump.play()
+                snakeJump.play()
             else:   
-                app.purpleEnemyJump.play()
+                purpleEnemyJump.play()
         row, col = enemy.block.position
 
         if not enemy.inPursue:
@@ -1070,9 +774,9 @@ def enemyMove(app, enemy: Enemy):
             enemy.state = app.enemyStates[1]
             # change the picture of the enemy: snake, dalekh, chiwarra
             if enemy.transformation or (enemy.type == app.enemyTypes[2] or enemy.type == app.enemyTypes[3]):
-                enemy.image = app.enemyImageBase + f'{enemy.type}-{enemy.direction}-jump.png'
+                enemy.image = ENEMY_BASE_IMAGE + f'{enemy.type}-{enemy.direction}-jump.png'
             elif enemy.type == app.enemyTypes[0] or enemy.type == app.enemyTypes[1]:
-                enemy.image = app.enemyImageBase + f'{enemy.type}-jump.png'
+                enemy.image = ENEMY_BASE_IMAGE + f'{enemy.type}-jump.png'
         else:
             if enemy.type == app.enemyTypes[1]:
                 # snake should start pursuing the player
@@ -1109,9 +813,9 @@ def enemyMove(app, enemy: Enemy):
 
             # changing the picture of the enemy
             if enemy.transformation or (enemy.type == app.enemyTypes[2] or enemy.type == app.enemyTypes[3]):
-                enemy.image = app.enemyImageBase + f'{enemy.type}-{enemy.direction}-idle.png'
+                enemy.image = ENEMY_BASE_IMAGE + f'{enemy.type}-{enemy.direction}-idle.png'
             elif enemy.type == app.enemyTypes[0] or enemy.type == app.enemyTypes[1]:
-                enemy.image = app.enemyImageBase + f'{enemy.type}-idle.png'
+                enemy.image = ENEMY_BASE_IMAGE + f'{enemy.type}-idle.png'
 
 def enemyPursue(app, enemy):
     enemyBlckCx, enemyBlckCy = enemy.block.getCenter()
@@ -1198,7 +902,7 @@ def detectCollision(app):
 
                     res = app.player.takeLife()
                     # display swear and play a swear music
-                    app.swear.play()
+                    swear.play()
 
                     if res == -1:
                         # no lives left
@@ -1217,7 +921,7 @@ def checkBlockColors(app):
        # player has successfuly passed the level!
         app.animationStartTime = time.time()
         app.gameState = app.gameStates[3]
-        app.victoryMusic.play()
+        victoryMusic.play()
         app.bonusAnimationStart = time.time()
         app.paused = True   
 
@@ -1235,7 +939,7 @@ def getBonusAnimation(app):
     elapsedTime = time.time() - app.bonusAnimationStart
     if app.bonusAnimationDuration - elapsedTime > 0:
         bonusTextX, bonusTextY = app.width // 2, app.height - 3 * app.labelMargin
-        drawImage(app.bonusTextImage, bonusTextX, bonusTextY, align='center')
+        drawImage(bonusTextImage, bonusTextX, bonusTextY, align='center')
 
 def calculateSnakes(enemies):
     count = 0
@@ -1243,37 +947,6 @@ def calculateSnakes(enemies):
         if enemy.type == 'snake':
             count += 1
     return count
-
-def createDisks(board, blockRadius, diskImageBase, number=2):
-    leftBlock = board[-2][0]
-    rightBlock = board[-2][-1]
-    
-    leftBlockCx, leftBlockCy = leftBlock.getCenter()
-    rightBlockCx, rightBlockCy = rightBlock.getCenter()
-
-    leftDiskCx = leftBlockCx - blockRadius
-    leftDiskCy = leftBlockCy - blockRadius
-
-    rightDiskCx = rightBlockCx + blockRadius
-    rightDiskCy = rightBlockCy - blockRadius
-
-    centers = [(leftDiskCx, leftDiskCy), (rightDiskCx, rightDiskCy)]
-    
-    disks = list()
-    for i in range(number):
-        diskImage = diskImageBase + f'disk1.png'
-        row = len(board) - 2
-        col = 0 if i == 0 else len(board[row]) - 1
-        blockUp = None
-        if col == 0:
-            blockUp = board[row-1][0]
-        else:
-            blockUp = board[row-1][row-1]
-        disk = Disk('disk', centers[i], imageId=1, image=diskImage, \
-                    position=(row, col), blockUp=blockUp)
-        disks.append(disk)
-
-    return disks
 
 def animateDisks(app):
     animated = False
@@ -1284,7 +957,7 @@ def animateDisks(app):
                 disk.imageId += 1
             else:
                 disk.imageId = 1
-            disk.image = app.diskImageBase + f'disk{disk.imageId}.png'
+            disk.image = DISK_BASE_IMAGE + f'disk{disk.imageId}.png'
             animated = True
     if animated:
         app.diskImageChangeInterval += app.fixedDiskImageChangeInterval
@@ -1311,7 +984,7 @@ def nextGame(app):
     onAppStart(app)
 
     app.gameState = app.gameStates[1]
-    app.levelStartMusic.play()
+    levelStartMusic.play()
     app.startLevelInitTime = time.time()
 
     if currentRound < app.rounds:
@@ -1322,21 +995,16 @@ def nextGame(app):
         # changing the colors
         app.mainColor = app.mainColors[app.level-1][app.round-1]
         app.targetColor = app.targetColors[app.level-1]
-        app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
+        app.board = createBoard(app, app.rows, app.wrapperHeight // 4, 
+                                sideColors=app.sideColors[app.level-1][app.round-1])
 
         if app.level > 1 and app.round > 1:
             app.rows = currentRows
             app.rawBlocks = countBlocks(app.board)
-            app.disks = createDisks(app.board, app.radius, app.diskImageBase)
-
-        if curMaxEnemiesOnBoard < app.fixedMaxEnemiesOnBoard:
-            app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard + 1
+            app.disks = createDisks(app.board, app.radius, DISK_BASE_IMAGE)
 
         if curGameAddSpeed < app.maxGameAddSpeed:
             app.gameAddSpeed = curGameAddSpeed + app.fixedGameAddSpeed
-        
-        if curEnemySpawnFixedInterval > app.minEnemySpawnInterval:
-            app.enemySpawnFixedInterval = curEnemySpawnFixedInterval - 1
 
     elif currentLevel < app.levels:
         app.rows = currentRows + 1
@@ -1348,10 +1016,13 @@ def nextGame(app):
 
         app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
         app.rawBlocks = countBlocks(app.board)
-        app.disks = createDisks(app.board, app.radius, app.diskImageBase)
+        app.disks = createDisks(app.board, app.radius, DISK_BASE_IMAGE)
         
         app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
         app.maxGreenEnemyAppear = curMaxGreenEnemyAppear + 1
+
+        if curMaxEnemiesOnBoard < app.fixedMaxEnemiesOnBoard:
+            app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard + 1
 
         app.enemySpawnFixedInterval = 3
     else:
@@ -1387,7 +1058,7 @@ def continueGame(app):
 
     app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
     app.rawBlocks = countBlocks(app.board)
-    app.disks = createDisks(app.board, app.radius, app.diskImageBase)
+    app.disks = createDisks(app.board, app.radius, DISK_BASE_IMAGE)
     app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
 
     app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard
@@ -1408,11 +1079,12 @@ def nextInstruction(app):
     else:
         # the game will start
         # stop the music
-        app.mainTheme.pause()
+        mainTheme.pause()
         # change the state of the  game
         app.gameState = app.gameStates[1]
         app.startLevelInitTime = time.time()
-        app.levelStartMusic.play()
+        app.instructionStartTime = None
+        levelStartMusic.play()
 
 def createJoysticks(app):
     joysticks = list()
@@ -1421,7 +1093,7 @@ def createJoysticks(app):
     cy = app.height // 2
     state = 'idle'
     for direction in app.joystickDirections:
-        image = app.joystickBase + f'{state}.png'
+        image = JOYSTICK_BASE_IMAGE + f'{state}.png'
         stick = JoystickInstruction('joystick', (cx, cy), image, direction, state, 1)
         joysticks.append(stick)
     return joysticks
@@ -1434,7 +1106,6 @@ def onJoyPress(app, button, joystick):
             app.playButtonState = 'on'
             app.btnIsPressed = True
             app.startLevelInitTime = time.time()
-            app.levelStartMusic.play()
         elif app.gameState == app.gameStates[5]:
             onAppStart(app)
 
@@ -1449,7 +1120,7 @@ def onJoyPress(app, button, joystick):
     if button == '2':
         if app.gameState == app.gameStates[7]:
             # The instructions
-            app.jump1Music.play()
+            jump1Music.play()
             nextInstruction(app)
 
     if button == '0':
@@ -1457,16 +1128,6 @@ def onJoyPress(app, button, joystick):
         app.gameState = app.gameStates[5]
 
 def onDigitalJoyAxis(app, results, joystick):
-    """
-    if key == 'down':
-        direction += 'down-left'
-    elif key == 'up':
-        direction += 'top-right'
-    elif key == 'left':
-        direction += 'top-left'
-    elif key == 'right':
-        direction += 'down-right'
-    """
     key = ''
     if (1, -1) in results:
         # top-right
