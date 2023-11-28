@@ -1396,6 +1396,12 @@ def onJoyPress(app, button, joystick):
         # A: To continue the game when the player died
         continueGame(app)
 
+    if button == '2':
+        if app.gameState == app.gameStates[7]:
+            # The instructions
+            app.jump1Music.play()
+            nextInstruction(app)
+
     if button == '0':
         # B: To end the game
         app.gameState = app.gameStates[8]
