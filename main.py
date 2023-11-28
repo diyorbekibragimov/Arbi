@@ -18,8 +18,8 @@ def onAppStart(app):
     app.background = 'black'
 
     # Global
-    app.levels = 5
-    app.level = 1
+    app.levels = 3
+    app.level = 3
     app.rounds = 3
     app.round = 1
 
@@ -33,18 +33,26 @@ def onAppStart(app):
     app.bonusAnimationStart = None
     app.bonusAnimationDuration = 5
 
-    app.mainColor = 'royalBlue'
-    app.sideColors = [
-        ['cadetBlue', 'slateGray']
+    app.mainColors = [
+        ['royalBlue', 'salmon', 'limeGreen'],
+        ['gainsboro', 'lightSlateGray', 'lightCyan'],
+        ['orange', 'mistyRose', 'springGreen']
     ]
-    app.targetColors = ['yellow', 'blue', 'blueViolet']
+    
+    app.mainColor = app.mainColors[app.level-1][app.round-1]
+    app.sideColors = [
+        [['cadetBlue', 'slateGray'], ['darkGray', 'dimGray'], ['black', 'black']],
+        [['limeGreen', 'mediumSeaGreen'], ['darkOrchid', 'slateBlue'], ['black', 'black']],
+        [['peru', 'saddleBrown'], ['linen', 'antiqueWhite'], ['black', 'black']]
+    ]
+    app.targetColors = ['yellow', 'dodgerBlue', 'steelBlue']
     app.targetColor = app.targetColors[app.level-1]
 
     app.rows, app.blockSize, app.radius, app.margin = getDimenstions()
 
     app.wrapperWidth = (app.rows + 1) * app.blockSize
     app.wrapperHeight = app.rows * app.blockSize + 2 * app.margin
-    app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
+    app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
     app.rawBlocks = countBlocks(app.board)
 
     # player starts on the highest col of the pyramid
@@ -89,6 +97,7 @@ def onAppStart(app):
     app.gameOverText = app.interfaceBaseImage + 'gameOverText.png'
     app.continueText = app.interfaceBaseImage + 'continueText.png'
     app.selectInstructionImage = app.interfaceBaseImage + 'instructionSelect.png'
+    app.yourScoreImage = app.interfaceBaseImage + 'yourScore.png'
 
     # End screen
     app.creator = app.interfaceBaseImage + 'creator2.png'
@@ -107,7 +116,7 @@ def onAppStart(app):
     app.instructionStartTime = 0
     offsetY = app.height // 2 - 1.5 * (app.blockSize + 2 * app.radius)
     offsetX = - 5 * app.labelMargin
-    app.instructionBoard = createBoard(app, 4, offsetY, offsetX)
+    app.instructionBoard = createBoard(app, 4, offsetY, offsetX, sideColors=app.sideColors[app.level-1][app.round-1])
     app.instructionPlayerInitDirection = 'top-right'
     app.instructionPlayerStates = ['idle', 'jump']
     app.instructionPlayer = Player('instructionPlayer', app.instructionBoard[2][1].getCenter(), app.instructionBoard[2][1],
@@ -132,7 +141,7 @@ def onAppStart(app):
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
     app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail', 'instructions', 'gameEnd']
-    app.gameState = 'start'
+    app.gameState = 'fail'
     app.paused = False
 
     app.enemyTypes = ['red', 'snake', 'dalekh', 'chiwarra']
@@ -185,7 +194,7 @@ def onAppStart(app):
     app.startPlayerCx = app.width // 2
     app.startPlayerCy = app.height - 10 * app.labelMargin
     offsetY = app.startPlayerCy
-    app.startBoard = createBoard(app, 2, offsetY)
+    app.startBoard = createBoard(app, 2, offsetY, sideColors=app.sideColors[app.level-1][app.round-1])
     app.startPlayerInitDirection = 'down-left'
     app.startPlayerStates = ['idle', 'jump']
     app.startPlayer = Player('startPlayer', app.startBoard[0][0].getCenter(), app.startBoard[0][0], \
@@ -441,7 +450,10 @@ def onStep(app):
                         app.instructionPlayer.block.mainColor = app.targetColor
 
                     # change the picture of the player to the original state
-                    app.instructionPlayer.image = app.playerImageBase + f'{app.instructionPlayer.direction}-idle.png'
+                    try:
+                        app.instructionPlayer.image = app.playerImageBase + f'{app.instructionPlayer.direction}-idle.png'
+                    except:
+                        print("Failed to change the picture.")
 
                     # return to the initial block
                     if elapsedTime - app.instructionJumpWait > 0:
@@ -454,7 +466,10 @@ def onStep(app):
             # stick animation
             if elapsedTime - stick.imageChangeInterval > 0:
                 if stick.state == 'idle':
-                    stick.image = app.joystickBase + f'{stick.direction}.png'
+                    try:
+                        stick.image = app.joystickBase + f'{stick.direction}.png'
+                    except:
+                        print("Failed to change the picture.")
                     stick.state = 'active'
                 elif stick.state == 'active':
                     stick.image = app.joystickBase + f'idle.png'
@@ -524,6 +539,9 @@ def onStep(app):
                 app.player.state = app.playerStates[0]
                 app.player.changeCenter(app.player.block.getCenter())
 
+                # revert the picture
+                app.player.image = app.playerImage
+
                 app.playerDeathTime = None
                 # the game state changes to 'inprogress'
                 app.gameState = app.gameStates[2]
@@ -567,9 +585,7 @@ def onKeyPress(app, key):
 
     if not app.paused \
         and app.gameState == app.gameStates[2] \
-        and app.player.state != app.playerStates[1] \
-        and app.player.state != app.playerStates[3] \
-        and app.player.state != app.playerStates[4]:
+        and app.player.state == app.playerStates[0]:
         if key in app.allowedMovementKeys:
             # the player is jumping
             playerJump(app, app.board, app.player, app.playerStates, key)
@@ -823,13 +839,32 @@ def drawFinal(app):
     continueHeight = 29
     gameOverHeight = 29
 
+    # Final
+def drawFinal(app):
+    cx, cy = app.width // 2, app.height // 3
+    drawImage(app.gameOverImage, cx, cy, align='center')
+
+    # score
+    scoreHeight = 29
+    scoreWidth = 200
+    scoreX = app.width // 2 
+    scoreY = cy + 2 * app.labelMargin
+    drawImage(app.yourScoreImage, scoreX, scoreY, align='center')
+
+    scoreX = scoreX + scoreWidth // 2 + app.labelMargin
+    scoreY = scoreY
+    scoreImage = app.interfaceBaseImage + f'Score{app.player.score}.png'
+    drawImage(scoreImage, scoreX, scoreY, align='center')
+
+    # navigation
     continueX = cx
-    continueY = app.height // 2 - gameOverHeight + app.labelMargin
+    continueY = scoreY + scoreHeight + app.labelMargin
     drawImage(app.continueText, continueX, continueY, align='center')
 
     gameOverX = cx 
-    gameOverY = app.height // 2 + continueHeight + app.labelMargin
+    gameOverY = continueY + 2 * app.labelMargin
     drawImage(app.gameOverText, gameOverX, gameOverY, align='center')
+    
 
 def drawStars(app):
     for star in app.stars:
@@ -1291,11 +1326,17 @@ def nextGame(app):
     app.startLevelInitTime = time.time()
 
     if currentRound < app.rounds:
+        app.rows = currentRows
         app.round = currentRound + 1
         app.level = currentLevel
+
+        # changing the colors
+        app.mainColor = app.mainColors[app.level-1][app.round-1]
+        app.targetColor = app.targetColors[app.level-1]
+        app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
+
         if app.level > 1 and app.round > 1:
             app.rows = currentRows
-            app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
             app.rawBlocks = countBlocks(app.board)
             app.disks = createDisks(app.board, app.radius, app.diskImageBase)
 
@@ -1310,11 +1351,16 @@ def nextGame(app):
 
     elif currentLevel < app.levels:
         app.rows = currentRows + 1
-        app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
-        app.rawBlocks = countBlocks(app.board)
-        app.disks = createDisks(app.board, app.radius, app.diskImageBase)
         app.level = currentLevel + 1
 
+        # changing the colors
+        app.mainColor = app.mainColors[app.level-1][app.round-1]
+        app.targetColor = app.targetColors[app.level-1]
+
+        app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
+        app.rawBlocks = countBlocks(app.board)
+        app.disks = createDisks(app.board, app.radius, app.diskImageBase)
+        
         app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
         app.maxGreenEnemyAppear = curMaxGreenEnemyAppear + 1
 
@@ -1346,9 +1392,15 @@ def continueGame(app):
     app.round = currentRound
     app.level = currentLevel
     app.rows = currentRows
-    app.board = createBoard(app, app.rows, app.wrapperHeight // 4)
+    # changing the colors
+    app.mainColor = app.mainColors[app.level-1][app.round-1]
+    app.targetColor = app.targetColors[app.level-1]
+
+    app.board = createBoard(app, app.rows, app.wrapperHeight // 4, sideColors=app.sideColors[app.level-1][app.round-1])
     app.rawBlocks = countBlocks(app.board)
+    app.disks = createDisks(app.board, app.radius, app.diskImageBase)
     app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
+
     app.maximumEnemiesOnBoard = curMaxEnemiesOnBoard
     app.enemySpawnFixedInterval = curEnemySpawnFixedInterval
     app.gameAddSpeed = curGameAddSpeed

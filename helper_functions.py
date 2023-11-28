@@ -12,7 +12,7 @@ def getDimenstions():
     margin = 25
     return (rows, blockSize, radius, margin)
 
-def createBoard(app, rows, offsetY, offsetX=0):
+def createBoard(app, rows, offsetY, offsetX=0, sideColors=['cadetBlue', 'slateGray']):
     board = []
     for row in range(1, rows+1):
         numOfBlocks = row
@@ -32,7 +32,7 @@ def createBoard(app, rows, offsetY, offsetX=0):
             # that move on the sides of the block
             block = Block(tag=f'block', center=(centerX, centerY), 
                           position=(row-1, col), mainColor=app.mainColor, 
-                          sideColors=app.sideColors[app.level-1])
+                          sideColors=sideColors)
             blocks.append(block)
         board.append(blocks)
     return board
