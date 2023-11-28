@@ -19,7 +19,7 @@ def onAppStart(app):
 
     # Global
     app.levels = 3
-    app.level = 3
+    app.level = 1
     app.rounds = 3
     app.round = 1
 
@@ -98,6 +98,7 @@ def onAppStart(app):
     app.continueText = app.interfaceBaseImage + 'continueText.png'
     app.selectInstructionImage = app.interfaceBaseImage + 'instructionSelect.png'
     app.yourScoreImage = app.interfaceBaseImage + 'yourScore.png'
+    app.pressStartText = app.interfaceBaseImage + 'arcade-press-start.png'
 
     # End screen
     app.creator = app.interfaceBaseImage + 'creator2.png'
@@ -127,21 +128,15 @@ def onAppStart(app):
     app.instructionJumpWait = 0.1
     app.maxInstruction = 4
 
-    # Support for the Arcade
-    app.pressStartText = app.interfaceBaseImage + 'arcade-press-start.png'
-
     app.swearImage = app.interfaceBaseImage + 'swear.png'
-    app.stars = generateStars(app, maxCap=5, image=app.starImage)
-    app.starAnimation = 3
-
     app.playButtonState = 'off'
     app.btnIsPressed = False
     app.btnWidth = 150
     app.btnHeight = 50
 
     app.allowedMovementKeys = ['down', 'right', 'up', 'left']
-    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'pass', 'fail', 'instructions', 'gameEnd']
-    app.gameState = 'fail'
+    app.gameStates = ['start', 'levelTrans', 'inprogress', 'levelComplete', 'playerDied', 'gameEnd', 'fail', 'instructions']
+    app.gameState = 'start'
     app.paused = False
 
     app.enemyTypes = ['red', 'snake', 'dalekh', 'chiwarra']
@@ -194,7 +189,7 @@ def onAppStart(app):
     app.startPlayerCx = app.width // 2
     app.startPlayerCy = app.height - 10 * app.labelMargin
     offsetY = app.startPlayerCy
-    app.startBoard = createBoard(app, 2, offsetY, sideColors=app.sideColors[app.level-1][app.round-1])
+    app.startBoard = createBoard(app, 2, offsetY, sideColors=app.sideColors[0][0])
     app.startPlayerInitDirection = 'down-left'
     app.startPlayerStates = ['idle', 'jump']
     app.startPlayer = Player('startPlayer', app.startBoard[0][0].getCenter(), app.startBoard[0][0], \
@@ -222,17 +217,16 @@ def redrawAll(app):
         drawnHomeScreen(app)
     elif app.gameState == app.gameStates[1]:
         drawStartLevel(app)
-    elif app.gameState == app.gameStates[5] \
-        or app.gameState == app.gameStates[6]:
+    elif app.gameState == app.gameStates[5]:
+        # the player has completely ended the game
+        drawEndScreen(app)
+        app.mainTheme.play()
+    elif app.gameState == app.gameStates[6]:
         # the player has either lost or won the game
         drawFinal(app)
     elif app.gameState == app.gameStates[7]:
         # instructions
         drawInstruction(app)
-    elif app.gameState == app.gameStates[8]:
-        # the player has completely ended the game
-        drawEndScreen(app)
-        app.mainTheme.play()
     else:
         app.levelStartMusic.pause()
         drawPyramid(app, app.board)
@@ -566,7 +560,7 @@ def onKeyPress(app, key):
     if key == 'b':
         if app.gameState == app.gameStates[6]:
             # end the game
-            app.gameState = app.gameStates[8]
+            app.gameState = app.gameStates[5]
     
     if key == 'a':
         if app.gameState == app.gameStates[6]:
@@ -578,7 +572,7 @@ def onKeyPress(app, key):
             nextInstruction(app)
 
     if key == 's':
-        if app.gameState == app.gameStates[8]:
+        if app.gameState == app.gameStates[5]:
             # returning back to the main screen
             # with everything going to the default
             onAppStart(app)
@@ -830,16 +824,6 @@ def drawnHomeScreen(app):
     pressStartY = app.height // 2 + app.labelMargin
     drawImage(app.pressStartText, pressStartX, pressStartY, align='center')
 
-# Final
-def drawFinal(app):
-    cx, cy = app.width // 2, app.height // 3
-    drawImage(app.gameOverImage, cx, cy, align='center')
-
-    # text
-    continueHeight = 29
-    gameOverHeight = 29
-
-    # Final
 def drawFinal(app):
     cx, cy = app.width // 2, app.height // 3
     drawImage(app.gameOverImage, cx, cy, align='center')
@@ -864,12 +848,6 @@ def drawFinal(app):
     gameOverX = cx 
     gameOverY = continueY + 2 * app.labelMargin
     drawImage(app.gameOverText, gameOverX, gameOverY, align='center')
-    
-
-def drawStars(app):
-    for star in app.stars:
-        cx, cy = star.getCenter()
-        drawImage(star.getImage(), cx, cy, align='center')
 
 def drawClickButton(app):
     if app.playButtonState == 'off':
@@ -884,6 +862,17 @@ def drawEndScreen(app):
     thankX = app.width // 2
     thankY = app.height // 4
     drawImage(app.thankImage, thankX, thankY, align='center')
+    
+    scoreHeight = 29
+    scoreWidth = 200
+    scoreX = app.width // 2 
+    scoreY = thankY + 2 * app.labelMargin
+    drawImage(app.yourScoreImage, scoreX, scoreY, align='center')
+
+    scoreX = scoreX + scoreWidth // 2 + app.labelMargin
+    scoreY = scoreY
+    scoreImage = app.interfaceBaseImage + f'Score{app.player.score}.png'
+    drawImage(scoreImage, scoreX, scoreY, align='center')
 
     # navigation 
     navigationImageHeight = 20
@@ -1364,7 +1353,7 @@ def nextGame(app):
         app.gameAddSpeed = app.fixedGameAddSpeed * (app.level - 1)
         app.maxGreenEnemyAppear = curMaxGreenEnemyAppear + 1
 
-        app.enemySpawnFixedInterval -= (app.level - 1)
+        app.enemySpawnFixedInterval = 3
     else:
         # complete win
         app.gameState = app.gameStates[5]
@@ -1446,7 +1435,7 @@ def onJoyPress(app, button, joystick):
             app.btnIsPressed = True
             app.startLevelInitTime = time.time()
             app.levelStartMusic.play()
-        elif app.gameState == app.gameStates[8]:
+        elif app.gameState == app.gameStates[5]:
             onAppStart(app)
 
     if button == '5':
@@ -1465,7 +1454,7 @@ def onJoyPress(app, button, joystick):
 
     if button == '0':
         # B: To end the game
-        app.gameState = app.gameStates[8]
+        app.gameState = app.gameStates[5]
 
 def onDigitalJoyAxis(app, results, joystick):
     """
