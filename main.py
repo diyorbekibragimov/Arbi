@@ -1154,7 +1154,7 @@ def onDigitalJoyAxis(app, results, joystick):
             playerJump(app, app.board, app.player, app.playerStates, key)
 
 def playGame():
-    runApp(width=1000, height=800)
+    runApp(width=800, height=600)
 
 def main():
     playGame()
