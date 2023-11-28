@@ -70,7 +70,7 @@ def onAppStart(app):
     app.starImage = app.interfaceBaseImage + 'star.png'
     app.logoImage = app.interfaceBaseImage + 'logo50.png'
     app.gameOverImage = app.interfaceBaseImage + 'gameOver50.png'
-    app.inspirationImage = app.interfaceBaseImage + 'inspiration.png'
+    app.inspirationImage = app.interfaceBaseImage + 'inspirationText.png'
     app.playBtnHollowImage = app.interfaceBaseImage + 'playButtonHollow.png'
     app.playBtnImage = app.interfaceBaseImage + 'playButton.png'
     app.playBtnTextImageF = app.interfaceBaseImage + 'playFirst.png'
