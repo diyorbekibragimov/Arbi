@@ -559,6 +559,12 @@ def onKeyPress(app, key):
             app.jump1Music.play()
             nextInstruction(app)
 
+    if key == 's':
+        if app.gameState == app.gameStates[8]:
+            # returning back to the main screen
+            # with everything going to the default
+            onAppStart(app)
+
     if not app.paused \
         and app.gameState == app.gameStates[2] \
         and app.player.state != app.playerStates[1] \
@@ -1388,6 +1394,9 @@ def onJoyPress(app, button, joystick):
             app.btnIsPressed = True
             app.startLevelInitTime = time.time()
             app.levelStartMusic.play()
+        elif app.gameState == app.gameStates[8]:
+            onAppStart(app)
+
     if button == '5':
         # P1
         sys.exit(0)
